@@ -1,5 +1,5 @@
 # Automate Recruiter Emails
-This is a simple python script that automates the process of sending emails to recruiters. It uses the gmail API to draft emails to recruiters. Currently I use it in conjunction with Streak CRM to manage my job search. I write the draft using this script and then later schedule the email to be sent later manually using. See a demo [here](https://youtu.be/Ef5i8DboJP4).
+This is a simple python script that automates the process of sending emails to recruiters. It uses the gmail API to draft emails to recruiters. Currently I use it in conjunction with [Streak CRM](https://www.streak.com/) to manage my job search. I write the draft using this script and then later schedule the email to be sent later manually using the schedule message to send feature which streak has. Gmail also has scheduling built in but I prefer to use Streak since they also provide somewhat accurate read receipts to see when emails have been read. Unfortunately, Google Gmail API does not support schedule sending natively. See a demo [here](https://youtu.be/Ef5i8DboJP4).
 
 # Installation
 1. Clone the repository
@@ -21,6 +21,9 @@ Your directory structure should look like this:
 ├── resume.pdf
 └── token.json
 ```
+
+The `token.json` file will not exist yet if you haven't run the script yet. The `token.json` file stores the login credentials required to access your Google account so you don't have to relogin each time you run the script. If the file does not exist you will be prompted to login to Google using standard Oauth2 flow.
+
 ## Environment Variables
 The following environment variables should be set:
 ```
