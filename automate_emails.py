@@ -50,12 +50,11 @@ def get_gmail_service():
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Automates sending emails to recruiters")
-    parser.add_argument("filename", type=str,
-                        help="The name of the file to process")
-    parser.add_argument("recruiter_name", type=str,
-                        help="The full name of the recruiter")
     parser.add_argument("recruiter_company", type=str,
                         help="The company name of the recruiter")
+    parser.add_argument("recruiter_name", type=str,
+                        help="The full name of the recruiter")
+
     parser.add_argument("recruiter_email", type=str,
                         help="The email address of the recruiter")
     return parser.parse_args()
@@ -111,13 +110,11 @@ if __name__ == "__main__":
     recruiter_name = args.recruiter_name
     recruiter_company = args.recruiter_company
     recruiter_email = args.recruiter_email
-    filename = args.filename
+    filename = os.getenv("MESSAGE_BODY_PATH")
     subject = os.getenv("EMAIL_SUBJECT")
     attachment = os.getenv("ATTACHMENT_PATH")
     email_contents = process_file(
         filename, recruiter_name=recruiter_name, recruiter_company=recruiter_company)
     subject = process_subject(subject, recruiter_company=recruiter_company)
-    print(subject)
-    print(email_contents)
     save_draft(service, 'me', email_contents, to_address=recruiter_email,
                subject=subject, attachment=attachment)
