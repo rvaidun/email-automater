@@ -32,7 +32,8 @@ MESSAGE_BODY_PATH=email_template.txt
 ATTACHMENT_PATH=resume.pdf
 ATTACHMENT_NAME=FirstName_LastName_Resume.pdf
 ```
-- `EMAIL_SUBJECT`: The subject of the email. The script will replace the `$recruiter_company` variable with the value provided in the command line arguments. using [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating).
+- `EMAIL_SUBJECT`: The subject of the email. The script will replace the `$recruiter_company` variable with the value provided in the command line arguments. Interally the script is using [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating) to replace the variables.
+
 - `MESSAGE_BODY_PATH`: The name of the file to process. The file should use Python's templating syntax to have the following variables: `recruiter_name`, `$recruiter_company`. The script will replace these variables with the values provided in the command line arguments. For example, the `email_template.txt` file could look like this:
 ```
 Dear $recruiter_name,

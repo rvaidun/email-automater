@@ -10,9 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "args": [
-                "email_template.txt",
-                "James",
                 "TestCompany",
+                "James",
                 "jamestaylot2@gmail.com"
             ],
             "console": "integratedTerminal"

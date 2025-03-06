@@ -22,8 +22,8 @@ SCOPES = ["https://mail.google.com/"]
 
 
 def get_gmail_service():
-    """Shows basic usage of the Gmail API.
-    Lists the user's Gmail labels.
+    """
+    Return a gmail service object
     """
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
@@ -57,6 +57,8 @@ def parse_args():
 
     parser.add_argument("recruiter_email", type=str,
                         help="The email address of the recruiter")
+    parser.add_argument("--template_path", type=str,
+                        help="The path to the attachment file", default=os.getenv("MESSAGE_BODY_PATH"), nargs='?')
     return parser.parse_args()
 
 
@@ -77,7 +79,6 @@ def process_subject(s, **kwargs):
 
 
 def save_draft(service, user_id, message_body, to_address=None, subject=None, attachment=None):
-    base64_str = base64.urlsafe_b64encode(message_body.encode()).decode()
     message = EmailMessage()
 
     message.set_content(message_body)
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     recruiter_name = args.recruiter_name
     recruiter_company = args.recruiter_company
     recruiter_email = args.recruiter_email
-    filename = os.getenv("MESSAGE_BODY_PATH")
+    filename = args.template_path
     subject = os.getenv("EMAIL_SUBJECT")
     attachment = os.getenv("ATTACHMENT_PATH")
     email_contents = process_file(

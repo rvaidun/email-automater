@@ -3,4 +3,4 @@ token.json
 .env
 venv/
 credentials.json
-email_template.txt
+*email_template.txt
