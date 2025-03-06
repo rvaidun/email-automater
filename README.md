@@ -11,10 +11,12 @@ This is a simple python script that automates the process of sending emails to r
 Directory structure
 ```
 .
-├── README.md
+├── .env
+├── .gitignore
 ├── automate_emails.py
 ├── credentials.json
 ├── email_template.txt
+├── README.md
 ├── requirements.txt
 ├── resume.pdf
 └── token.json
