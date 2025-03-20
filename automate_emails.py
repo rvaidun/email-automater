@@ -9,8 +9,6 @@ from googleapiclient.errors import HttpError
 import argparse
 from string import Template
 import base64
-from email.mime.base import MIMEBase
-from email import encoders
 from email.message import EmailMessage
 
 from dotenv import load_dotenv
@@ -81,7 +79,7 @@ def process_subject(s, **kwargs):
 def save_draft(service, user_id, message_body, to_address=None, subject=None, attachment=None):
     message = EmailMessage()
 
-    message.set_content(message_body)
+    message.set_content(message_body, subtype='html')
     if attachment:
         with open(attachment, 'rb') as file:
             content = file.read()
@@ -92,7 +90,6 @@ def save_draft(service, user_id, message_body, to_address=None, subject=None, at
     message['Subject'] = subject
 
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
-    parts = []
     try:
         draft_message = {'message': {'raw': encoded_message}}
         draft = service.users().drafts().create(
