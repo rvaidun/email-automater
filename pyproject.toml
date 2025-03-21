@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "google-api-python-client>=2.165.0",
+]
 
 [tool.ruff.lint]
 select = ["ALL"]

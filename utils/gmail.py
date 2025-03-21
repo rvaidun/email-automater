@@ -1,3 +1,5 @@
+"""GmailAPI class to interact with the Gmail API."""
+
 import base64
 import logging
 from email.message import EmailMessage
@@ -9,13 +11,14 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
+
 SCOPES = ["https://mail.google.com/"]
 
 
 class GmailAPI:
     """A class to interact with the Gmail API."""
 
-    def __init__(self, token: dict) -> None:
+    def __init__(self) -> None:
         """Initialize the GmailAPI object."""
 
     def login(self, token: dict | None = None) -> Credentials:
@@ -41,15 +44,17 @@ class GmailAPI:
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    "credentials.json", SCOPES)
+                    "credentials.json", SCOPES
+                )
                 creds = flow.run_local_server(port=0)
-        self.service = build("gmail", "v1", credentials=creds)
+        self.service = build(
+            "gmail", "v1", credentials=creds, cache_discovery=False)
         return creds
 
     def save_draft(
         self,
         message: EmailMessage,
-    ) -> bool:
+    ) -> dict | bool:
         """
         Save a draft message in Gmail.
 
@@ -57,7 +62,7 @@ class GmailAPI:
             message (EmailMessage): The message to save as a draft.
 
         Returns:
-            bool: True if the draft was saved successfully, False otherwise.
+            dict: True if the draft was saved successfully, False otherwise.
 
         """
         encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
@@ -70,9 +75,43 @@ class GmailAPI:
                 .execute()
             )
 
-            logger.info("Draft id: %s\nDraft message: %s",
-                        draft["id"], draft["message"])
+            logger.info(
+                "Draft id: %s\nDraft message: %s", draft["id"], draft["message"]
+            )
         except HttpError:
             logger.exception("An error occurred saving the draft")
             return False
-        return True
+        return draft
+
+    def send_now(
+        self,
+        message: EmailMessage,
+    ) -> dict | bool:
+        """
+        Send a message immediately using the Gmail API.
+
+        Args:
+            message (EmailMessage): The message to send.
+
+        Returns:
+            dict: True if the message was sent successfully, False otherwise.
+
+        """
+        encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+        try:
+            sent_message = (
+                self.service.users()
+                .messages()
+                .send(userId="me", body={"raw": encoded_message})
+                .execute()
+            )
+
+            logger.info(
+                "Message id: %s\nMessage snippet: %s",
+                sent_message["id"],
+                sent_message["snippet"],
+            )
+        except HttpError:
+            logger.exception("An error occurred sending the message")
+            return False
+        return sent_message

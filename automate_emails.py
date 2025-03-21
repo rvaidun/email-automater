@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """Automates sending emails to recruiters."""
+
 import argparse
+import datetime
 import json
 import logging
 import os.path
@@ -11,13 +13,14 @@ from string import Template
 
 from dotenv import load_dotenv
 
+import utils.schedule_helper as sh
 from utils.gmail import GmailAPI
+from utils.streak import StreakSendLaterConfig, schedule_send_later
 
 load_dotenv()
-
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().addHandler(logging.StreamHandler())
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler())
 
 
 # If modifying these scopes, delete the file token.json.
@@ -63,9 +66,13 @@ def process_string(s: str, **kwargs: dict) -> str:
     return template.substitute(**kwargs)
 
 
-def create_email_message(message_body: str, to_address: str, subject: str,
-                         attachment: bytes | None = None,
-                         attachment_name: str | None = None) -> EmailMessage:
+def create_email_message(
+    message_body: str,
+    to_address: str,
+    subject: str,
+    attachment: bytes | None = None,
+    attachment_name: str | None = None,
+) -> EmailMessage:
     """
     Create an email message.
 
@@ -81,8 +88,12 @@ def create_email_message(message_body: str, to_address: str, subject: str,
     message.set_content(message_body, subtype="html")
     if attachment:
         if attachment_name:
-            message.add_attachment(attachment, maintype="application",
-                                   subtype="octet-stream", filename=attachment_name)
+            message.add_attachment(
+                attachment,
+                maintype="application",
+                subtype="octet-stream",
+                filename=attachment_name,
+            )
         else:
             logger.error("Attachment name not provided, skipping attachment")
 
@@ -100,24 +111,66 @@ if __name__ == "__main__":
     recruiter_company = args.recruiter_company
     recruiter_email = args.recruiter_email
     subject = os.getenv("EMAIL_SUBJECT")
-    attachment = os.getenv("ATTACHMENT_PATH")
-    if Path.exists("token.json"):
-        with Path.open("token.json", "rw") as file:
+    attachment_path_string = os.getenv("ATTACHMENT_PATH")
+    attachment_name = os.getenv("ATTACHMENT_NAME")
+    streak_token = os.getenv("STREAK_TOKEN")
+
+    token_path = Path("token.json")
+    attachment = (
+        Path(attachment_path_string).read_bytes(
+        ) if attachment_path_string else None
+    )
+    template = Path(args.template_path).read_text()
+
+    if token_path.exists():
+        with token_path.open("r") as file:
             token = file.read()
             token_json = json.loads(token)
             creds = gmail_api.login(token_json)
+        with token_path.open("w") as file:
             file.write(creds.to_json())
     else:
         logger.error("No token.json file found")
         sys.exit(1)
-    with Path.open(args.template_path, "r") as file:
-        template = file.read()
 
     email_contents = process_string(
         template, recruiter_name=recruiter_name, recruiter_company=recruiter_company
     )
     subject = process_string(subject, recruiter_company=recruiter_company)
     email_message = create_email_message(
-        email_contents, recruiter_email, subject, attachment=attachment
+        email_contents,
+        recruiter_email,
+        subject,
+        attachment=attachment,
+        attachment_name=attachment_name,
     )
-    gmail_api.save_draft(email_message)
+
+    draft = gmail_api.save_draft(email_message)
+    config = StreakSendLaterConfig()
+    config.token = streak_token
+    config.to_address = recruiter_email
+    config.subject = subject
+    config.thread_id = draft["message"]["threadId"]
+    config.draft_id = draft["id"]
+    # if the time is now between 00:00 AM and 9:50 AM, schedule the email to be sent at
+    # a random time between 10:00 AM and 11:00 AM
+
+    # if the time is between 9:50 AM and 1:50 PM, schedule the email to be sent at a
+    # random time between 2:00 and 2:30 PM
+
+    # if the time is between 2:30 PM and 23:59 PM on MTWT, schedule the email to be
+    # sent at a random time between tomorrow 10:00 AM and 11:00 AM
+
+    # if the time is between 2:30 PM and 23:59 PM on F, schedule the email to be sent
+    # or any time during the weekend schedule the email to be sent at a random time
+    # between Monday 10:00 AM and 11:00 AM
+
+    # all times are in the timezone of Pacific Time
+    send_time = sh.get_scheduled_send_time()
+
+    if send_time is True:
+        gmail_api.send_now(email_message)
+    elif isinstance(send_time, datetime.datetime):
+        config.send_date = send_time
+        config.is_tracked = True
+        schedule_send_later(config)
