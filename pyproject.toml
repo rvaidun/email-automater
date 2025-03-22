@@ -6,8 +6,13 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "google-api-python-client>=2.165.0",
+    "pytest>=8.3.5",
 ]
 
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["D211", "D212", "D203", "COM812"]
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore pytest rules outside tests directory
+"tests/**/*" = ["INP", "D100"]
