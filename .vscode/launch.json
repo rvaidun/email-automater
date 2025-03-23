@@ -14,6 +14,9 @@
                 "James",
                 "jamestaylot2@gmail.com"
             ],
+            "env": {
+                "LOG_LEVEL": "10"
+            },
             "console": "integratedTerminal"
         }
     ]

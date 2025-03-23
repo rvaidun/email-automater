@@ -16,12 +16,17 @@ from string import Template
 from dotenv import load_dotenv
 
 import utils.schedule_helper as sh
+from utils.customformatter import CustomFormatter
 from utils.gmail import GmailAPI
 from utils.streak import StreakSendLaterConfig, schedule_send_later
 
 load_dotenv()
-logging.getLogger().setLevel(logging.INFO)
-logging.getLogger().addHandler(logging.StreamHandler())
+logging.getLogger().setLevel(os.getenv("LOG_LEVEL", logging.INFO))
+# overwrite the format to include the timestamp and loglevel
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -117,6 +122,13 @@ def parse_args() -> argparse.Namespace:
             Note: the argument tracked needs to be passed for this to be used",
         nargs="?",
     )
+    parser.add_argument(
+        "--token_path",
+        type=str,
+        help="The path to the token.json file",
+        nargs="?",
+        default="token.json",
+    )
 
     return parser.parse_args()
 
@@ -195,7 +207,7 @@ if __name__ == "__main__":
         EnvironmentVariables.ENABLE_STREAK_SHEDULING.value
     )
 
-    token_path = Path("token.json")
+    token_path = Path(args.token_path)
     attachment = (
         Path(attachment_path_string).read_bytes() if attachment_path_string else None
     )
@@ -233,28 +245,34 @@ if __name__ == "__main__":
     # below this point the email is scheduled
     timezone = args.timezone or os.getenv(EnvironmentVariables.TIMEZONE.value)
     streak_token = os.getenv(EnvironmentVariables.STREAK_TOKEN.value)
+    if not streak_token:
+        draft = gmail_api.save_draft(email_message)
+        logger.error(
+            "Scheduling error: No streak token provided. Only adding email to drafts"
+        )
+        sys.exit(0)
+    csv_path = args.schedule_csv_path or os.getenv(
+        EnvironmentVariables.SCHEDULE_CSV_PATH.value
+    )
+    csv_path = Path(csv_path)
+    if not csv_path.exists():
+        draft = gmail_api.save_draft(email_message)
+        logger.error(
+            "Scheduling Error: No schedule csv file found. Only adding email to drafts"
+        )
+        sys.exit(1)
     streak_email_address = (
         args.email_address
         or os.getenv(EnvironmentVariables.STREAK_EMAIL_ADDRESS.value)
         or gmail_api.get_current_user()["emailAddress"]
     )
-    if not streak_token or not streak_email_address:
+    streak_email_address = None
+    if not streak_email_address:
         draft = gmail_api.save_draft(email_message)
-        logger.error(
-            "Required streak parameters not provided, only adding email to drafts"
+        logger.warning(
+            "%s not provided. Streak scheduling may not work as expected",
+            EnvironmentVariables.STREAK_EMAIL_ADDRESS.value,
         )
-        sys.exit(1)
-    csv_path = args.schedule_csv_path or os.getenv(
-        EnvironmentVariables.SCHEDULE_CSV_PATH.value
-    )
-    if not csv_path:
-        draft = gmail_api.save_draft(email_message)
-        logger.error("No schedule CSV path provided")
-        sys.exit(1)
-    csv_path = Path(csv_path)
-    if not csv_path.exists():
-        draft = gmail_api.save_draft(email_message)
-        logger.error("Schedule CSV path does not exist")
         sys.exit(1)
 
     with csv_path.open("r") as file:
