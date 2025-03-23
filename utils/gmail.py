@@ -47,8 +47,7 @@ class GmailAPI:
                     "credentials.json", SCOPES
                 )
                 creds = flow.run_local_server(port=0)
-        self.service = build(
-            "gmail", "v1", credentials=creds, cache_discovery=False)
+        self.service = build("gmail", "v1", credentials=creds, cache_discovery=False)
         return creds
 
     def save_draft(
@@ -107,9 +106,7 @@ class GmailAPI:
             )
 
             logger.info(
-                "Message id: %s\nMessage snippet: %s",
-                sent_message["id"],
-                sent_message["snippet"],
+                "Message id: %s \nMessage: %s", sent_message["id"], sent_message
             )
         except HttpError:
             logger.exception("An error occurred sending the message")
