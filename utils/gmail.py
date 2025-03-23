@@ -11,10 +11,6 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 SCOPES = ["https://mail.google.com/"]
 
 
@@ -76,10 +72,8 @@ class GmailAPI:
                 .create(userId="me", body=draft_message)
                 .execute()
             )
-
-            logger.info(
-                "Draft id: %s\nDraft message: %s", draft["id"], draft["message"]
-            )
+            logger.debug("Draft: %s", draft)
+            logger.info("Draft saved")
         except HttpError:
             logger.exception("An error occurred saving the draft")
             return False
@@ -124,5 +118,4 @@ class GmailAPI:
             dict: The current user's information.
 
         """
-        logger.debug("Getting current user's information")
         return self.service.users().getProfile(userId="me").execute()

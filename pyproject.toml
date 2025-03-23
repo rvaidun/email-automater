@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "colorlog>=6.9.0",
     "dotenv>=0.9.9",
     "google-api-python-client>=2.165.0",
     "google-auth-oauthlib>=1.2.1",

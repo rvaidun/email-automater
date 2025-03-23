@@ -7,17 +7,16 @@ from typing import ClassVar
 class CustomFormatter(logging.Formatter):
     """Custom formatter for colored logs."""
 
-    grey = "\\x1b[38;21m"
-    yellow = "\\x1b[33;21m"
-    red = "\\x1b[31;21m"
-    bold_red = "\\x1b[31;1m"
-    reset = "\\x1b[0m"
-    format = (
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
-    )
+    grey = "\033[90m"
+    cyan = "\033[96m"
+    yellow = "\033[33m"
+    red = "\033[41m"
+    bold_red = "\033[91;1m"
+    reset = "\033[0m"
+    format = " (%(filename)s:%(lineno)d) %(message)s"
     FORMATS: ClassVar = {
         logging.DEBUG: grey + format + reset,
-        logging.INFO: grey + format + reset,
+        logging.INFO: cyan + format + reset,
         logging.WARNING: yellow + format + reset,
         logging.ERROR: red + format + reset,
         logging.CRITICAL: bold_red + format + reset,

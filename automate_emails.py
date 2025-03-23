@@ -21,12 +21,13 @@ from utils.gmail import GmailAPI
 from utils.streak import StreakSendLaterConfig, schedule_send_later
 
 load_dotenv()
-logging.getLogger().setLevel(os.getenv("LOG_LEVEL", logging.INFO))
-# overwrite the format to include the timestamp and loglevel
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+
+logging.getLogger().setLevel(int(os.getenv("LOG_LEVEL", logging.INFO)))
+# set the default formatter to use CustomFormatter as the handler
+handler = logging.StreamHandler()
+handler.setFormatter(CustomFormatter())
+logging.getLogger().addHandler(handler)
+
 logger = logging.getLogger(__name__)
 
 
@@ -237,8 +238,14 @@ if __name__ == "__main__":
         attachment=attachment,
         attachment_name=attachment_name,
     )
-
+    logger.info(
+        "Recruiter email: %s, Recruiter Name: %s, Recruiter Company: %s",
+        args.recruiter_email,
+        args.recruiter_name,
+        args.recruiter_company,
+    )
     if not should_schedule:
+        logger.info("Draft saved")
         draft = gmail_api.save_draft(email_message)
         sys.exit(0)
 
@@ -266,7 +273,6 @@ if __name__ == "__main__":
         or os.getenv(EnvironmentVariables.STREAK_EMAIL_ADDRESS.value)
         or gmail_api.get_current_user()["emailAddress"]
     )
-    streak_email_address = None
     if not streak_email_address:
         draft = gmail_api.save_draft(email_message)
         logger.warning(
