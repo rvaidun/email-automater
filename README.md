@@ -91,11 +91,11 @@ DAY,START_TIME,END_TIME
 3, 14:00, 14:30
 4, 10:00, 11:00
 ```
-The CSV file represents the schedule for the emails. The script will send the email to the recruiter at the specified times. See the following cases
+The CSV file represents the schedule for the emails. The script will send the email to the recruiter at a random time in the earliest possible range. See the following cases:
 1. If it is Monday 9:15 AM we should send email between 10:00 AM and 11:00 AM
-2. If it is Monday 13:00 PM we should send email between 14:00 PM and 14:30 PM
-3. If it is Monday 15:00 PM we should send email between 10:00 AM and 11:00 AM on Tuesday
-4. If it is Friday 9:15 AM we should send email between 10:00 AM and 11:00 AM
+2. If it is Monday 10:30 AM we should send email right now since the time is between 10:00 AM and 11:00 AM
+3. If it is Monday 13:00 PM we should send email between 14:00 PM and 14:30 PM
+4. If it is Monday 15:00 PM we should send email between 10:00 AM and 11:00 AM on Tuesday
 5. If it is Friday 13:00 PM we should send email between 10:00 AM and 11:00 AM on Monday
 
 I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
