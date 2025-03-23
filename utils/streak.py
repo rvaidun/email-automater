@@ -58,10 +58,12 @@ def schedule_send_later(
 ) -> requests.Response:
     """Schedule an email to be sent later using Streak."""
     headers["authorization"] = f"Bearer {config.token}"
+    # convert config.send_date to UTC
+    send_date = config.send_date.astimezone(datetime.UTC)
     data = {
         "threadId": config.thread_id,
         "draftId": config.draft_id,
-        "sendDate": str(int(config.send_date.timestamp()) * 1000),
+        "sendDate": str(int(send_date.timestamp()) * 1000),
         "subject": config.subject,
         "sendLaterType": "NEW_MESSAGE",
         "isTracked": str(config.is_tracked).lower(),
@@ -80,5 +82,5 @@ def schedule_send_later(
         logger.error("Failed to schedule email to be sent later")
         logger.error(response.text)
         return False
-    logger.info("Email scheduled to be sent later")
+    logger.info("Email scheduled to be sent at %s", config.send_date)
     return True

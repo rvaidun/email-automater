@@ -5,7 +5,9 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "dotenv>=0.9.9",
     "google-api-python-client>=2.165.0",
+    "google-auth-oauthlib>=1.2.1",
     "pytest>=8.3.5",
 ]
 
@@ -15,4 +17,7 @@ ignore = ["D211", "D212", "D203", "COM812"]
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore pytest rules outside tests directory
-"tests/**/*" = ["INP", "D100"]
+"tests/**/*" = ["INP", "D100", "S101", "ANN", "DTZ"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -2,6 +2,7 @@
 """Automates sending emails to recruiters."""
 
 import argparse
+import csv
 import datetime
 import json
 import logging
@@ -34,6 +35,7 @@ class EnvironmentVariables(Enum):
     ENABLE_STREAK_SHEDULING = "ENABLE_STREAK_SCHEDULING"
     STREAK_TOKEN = "STREAK_TOKEN"  # noqa: S105
     TIMEZONE = "TIMEZONE"
+    SCHEDULE_CSV_PATH = "SCHEDULE_CSV_PATH"
 
 
 # If modifying these scopes, delete the file token.json.
@@ -64,7 +66,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--message_body_path",
         type=str,
-        help=f"The path to the attachment file env: \
+        help=f"The path to the message body template. env: \
             {EnvironmentVariables.MESSAGE_BODY_PATH.value}",
         nargs="?",
     )
@@ -84,13 +86,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--schedule",
-        type=bool,
         help=f"Whether the email should be tracked or not. env \
-            {EnvironmentVariables.ENABLE_STREAK_SHEDULING} \n \
-            If set, the streak token must be provided env: \
+            {EnvironmentVariables.ENABLE_STREAK_SHEDULING.value}. \
+            If set, the streak token must be provided via env variable \
             {EnvironmentVariables.STREAK_TOKEN.value}",
-        nargs=0,
-        default=False,
+        action="store_true",
+    )
+    parser.add_argument(
+        "--schedule_csv_path",
+        type=bool,
+        help=f"CSV to use for scheduling the emails \
+            env: {EnvironmentVariables.SCHEDULE_CSV_PATH.value}",
+        nargs="?",
     )
     parser.add_argument(
         "--timezone",
@@ -98,7 +105,6 @@ def parse_args() -> argparse.Namespace:
         help=f"The timezone to use for scheduling emails env: \n \
             {EnvironmentVariables.TIMEZONE.value} \
             Note: the argument tracked needs to be passed for this to be used",
-        default="UTC",
         nargs="?",
     )
 
@@ -175,11 +181,9 @@ if __name__ == "__main__":
             "attachment_path and attachment_name must both appear if either is provided"
         )
         sys.exit(1)
-    should_schedule = args.tracked or os.getenv(
+    should_schedule = args.schedule or os.getenv(
         EnvironmentVariables.ENABLE_STREAK_SHEDULING.value
     )
-    timezone = args.timezone or os.getenv(EnvironmentVariables.TIMEZONE.value)
-    streak_token = os.getenv(EnvironmentVariables.STREAK_TOKEN.value)
 
     token_path = Path("token.json")
     attachment = (
@@ -217,7 +221,30 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # below this point the email is scheduled
-    send_time = sh.get_scheduled_send_time()
+    timezone = args.timezone or os.getenv(EnvironmentVariables.TIMEZONE.value)
+    streak_token = os.getenv(EnvironmentVariables.STREAK_TOKEN.value)
+    if not streak_token:
+        draft = gmail_api.save_draft(email_message)
+        logger.error("Streak token not provided, only adding email to drafts")
+        sys.exit(1)
+    csv_path = args.schedule_csv_path or os.getenv(
+        EnvironmentVariables.SCHEDULE_CSV_PATH.value
+    )
+    if not csv_path:
+        draft = gmail_api.save_draft(email_message)
+        logger.error("No schedule CSV path provided")
+        sys.exit(1)
+    csv_path = Path(csv_path)
+    if not csv_path.exists():
+        draft = gmail_api.save_draft(email_message)
+        logger.error("Schedule CSV path does not exist")
+        sys.exit(1)
+
+    with csv_path.open("r") as file:
+        csv_reader = csv.DictReader(file)
+        day_ranges = sh.parse_time_ranges_csv(csv_reader)
+
+    send_time = sh.get_scheduled_send_time(day_ranges, timezone)
 
     if send_time is True:
         gmail_api.send_now(email_message)  # current time is within allowed range
