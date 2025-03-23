@@ -1,5 +1,6 @@
 # Automate Recruiter Emails
-This is a simple python script that automates the process of sending emails to recruiters. It uses the gmail API to draft emails to recruiters. Currently I use it in conjunction with [Streak CRM](https://www.streak.com/) to manage my job search. I write the draft using this script and then later schedule the email to be sent later manually using the schedule message to send feature which streak has. Gmail also has scheduling built in but I prefer to use Streak since they also provide somewhat accurate read receipts to see when emails have been read. Unfortunately, Google Gmail API does not support schedule sending natively. See a demo [here](https://youtu.be/Ef5i8DboJP4).
+This is a simple python script that automates the process of sending emails to recruiters. It uses the gmail API to draft emails to recruiters. Currently I use it in conjunction with [Streak CRM](https://www.streak.com/) to manage my job search. I write the draft using this script and then later schedule the email to be sent later manually using the schedule message to send feature which streak has. Gmail also has scheduling built in but I prefer to use Streak since they also provide somewhat accurate read receipts to see when emails have been read. Unfortunately, Google Gmail API does not support schedule sending natively. Instead I reverse engineered the Streak API to schedule the draft emails to be sent later. 
+See a demo [here](https://youtu.be/Ef5i8DboJP4).
 
 # Installation
 1. Clone the repository
@@ -46,20 +47,62 @@ I am interested in the position at $recruiter_company.
 # Usage
 
 ```bash
-(venv) ➜  emailer git:(main) ✗ ./automate_emails.py -h                                
-usage: automate_emails.py [-h] recruiter_company recruiter_name recruiter_email
+(emailer) ➜  emailer git:(refactor) ✗ ./automate_emails.py -h
+usage: automate_emails.py [-h] [--subject [SUBJECT]] [--message_body_path [MESSAGE_BODY_PATH]] [--attachment_path [ATTACHMENT_PATH]]
+                          [--attachment_name [ATTACHMENT_NAME]] [--schedule] [--schedule_csv_path [SCHEDULE_CSV_PATH]] [--timezone [TIMEZONE]]
+                          recruiter_company recruiter_name recruiter_email
 
 Automates sending emails to recruiters
 
 positional arguments:
-  recruiter_company  The company name of the recruiter
-  recruiter_name     The full name of the recruiter
-  recruiter_email    The email address of the recruiter
+  recruiter_company     The company name of the recruiter
+  recruiter_name        The full name of the recruiter
+  recruiter_email       The email address of the recruiter
 
 options:
-  -h, --help         show this help message and exit
-(venv) ➜  emailer git:(main) ✗ 
+  -h, --help            show this help message and exit
+  --subject [SUBJECT]   The subject of the email message as a string template env: EMAIL_SUBJECT
+  --message_body_path [MESSAGE_BODY_PATH]
+                        The path to the message body template. env: MESSAGE_BODY_PATH
+  --attachment_path [ATTACHMENT_PATH]
+                        The path to the attachment file, if this is provided, attachment_name must also be provided env: ATTACHMENT_PATH
+  --attachment_name [ATTACHMENT_NAME]
+                        The name of the attachment file env: ATTACHMENT_NAME
+  --schedule            Whether the email should be tracked or not. env ENABLE_STREAK_SCHEDULING. If set, the streak token must be provided via env
+                        variable STREAK_TOKEN
+  --schedule_csv_path [SCHEDULE_CSV_PATH]
+                        CSV to use for scheduling the emails env: SCHEDULE_CSV_PATH
+  --timezone [TIMEZONE]
+                        The timezone to use for scheduling emails env: TIMEZONE Note: the argument tracked needs to be passed for this to be used
+(emailer) ➜  emailer git:(refactor) ✗ 
 ```
+
+## Schedule Emails
+To enable scheduling emails you need to set the `--schedule` flag. You also need to provide the `--schedule_csv_path` flag which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns `DAY`,`START_TIME`,`END_TIME`. For example:
+```csv
+DAY,START_TIME,END_TIME
+0, 10:00, 11:00
+0, 14:00, 14:30
+1, 10:00, 11:00
+1, 14:00, 14:30
+2, 10:00, 11:00
+2, 14:00, 14:30
+3, 10:00, 11:00
+3, 14:00, 14:30
+4, 10:00, 11:00
+```
+The CSV file represents the schedule for the emails. The script will send the email to the recruiter at the specified times. See the following cases
+1. If it is Monday 9:15 AM we should send email between 10:00 AM and 11:00 AM
+2. If it is Monday 13:00 PM we should send email between 14:00 PM and 14:30 PM
+3. If it is Monday 15:00 PM we should send email between 10:00 AM and 11:00 AM on Tuesday
+4. If it is Friday 9:15 AM we should send email between 10:00 AM and 11:00 AM
+5. If it is Friday 13:00 PM we should send email between 10:00 AM and 11:00 AM on Monday
+
+I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
+
+You also need to provide `STREAK_TOKEN` via environment variable, you can get this by inspecting the network requests when you schedule an email in Streak. Look for the network request to `https://api.streak.com/api/v2/sendlaters` and copy the `Authorization` header value.
+
+You can also set the `--timezone` flag to specify the timezone to use for scheduling emails. The default is `UTC`.
 
 # Future
 
