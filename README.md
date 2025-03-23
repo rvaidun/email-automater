@@ -28,10 +28,19 @@ The `token.json` file will not exist yet if you haven't run the script yet. The 
 ## Environment Variables
 The following environment variables should be set:
 ```
+# Email stuff
 EMAIL_SUBJECT=I would like to work at $recruiter_company
 MESSAGE_BODY_PATH=email_template.txt
 ATTACHMENT_PATH=resume.pdf
 ATTACHMENT_NAME=FirstName_LastName_Resume.pdf
+
+# Streak stuff
+TIMEZONE=America/Los_Angeles
+STREAK_TOKEN=classic:C/THIS+IS+/NOT/A/REAL TOKEN
+ENABLE_STREAK_SCHEDULING=True
+SCHEDULE_CSV_PATH=scheduler.csv
+STREAK_EMAIL_ADDRESS=first.last@gmail.com
+
 ```
 - `EMAIL_SUBJECT`: The subject of the email. The script will replace the `$recruiter_company` variable with the value provided in the command line arguments. Interally the script is using [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating) to replace the variables.
 
@@ -107,7 +116,7 @@ The script will send the email to the recruiter at a random time in the earliest
 
 I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
 
-You also need to provide `STREAK_TOKEN` via environment variable, you can get this by inspecting the network requests when you schedule an email in Streak. Look for the network request to `https://api.streak.com/api/v2/sendlaters` and copy the `Authorization` header value.
+You also need to provide `STREAK_TOKEN` via environment variable, you can get this by inspecting the network requests when you schedule an email in Streak. Look for the network request to `https://api.streak.com/api/v2/sendlaters` and copy the `Authorization` header value without the `Bearer` prefix.
 
 You can also set the `--timezone` flag to specify the timezone to use for scheduling emails. The default is `UTC`.
 
