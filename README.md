@@ -46,10 +46,10 @@ I am interested in the position at $recruiter_company.
 
 # Usage
 
-```bash
-(emailer) ➜  emailer git:(refactor) ✗ ./automate_emails.py -h
+```
 usage: automate_emails.py [-h] [--subject [SUBJECT]] [--message_body_path [MESSAGE_BODY_PATH]] [--attachment_path [ATTACHMENT_PATH]]
                           [--attachment_name [ATTACHMENT_NAME]] [--schedule] [--schedule_csv_path [SCHEDULE_CSV_PATH]] [--timezone [TIMEZONE]]
+                          [--email_address [EMAIL_ADDRESS]]
                           recruiter_company recruiter_name recruiter_email
 
 Automates sending emails to recruiters
@@ -74,11 +74,18 @@ options:
                         CSV to use for scheduling the emails env: SCHEDULE_CSV_PATH
   --timezone [TIMEZONE]
                         The timezone to use for scheduling emails env: TIMEZONE Note: the argument tracked needs to be passed for this to be used
-(emailer) ➜  emailer git:(refactor) ✗ 
+  --email_address [EMAIL_ADDRESS]
+                        The email address to use in streak scheduling emails env: STREAK_EMAIL_ADDRESS If not provided, the email address of the
+                        authenticated user will be used Note: the argument tracked needs to be passed for this to be used
 ```
 
 ## Schedule Emails
-To enable scheduling emails you need to set the `--schedule` flag. You also need to provide the `--schedule_csv_path` flag which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns `DAY`,`START_TIME`,`END_TIME`. For example:
+To enable scheduling emails you need to set the `--schedule` flag. You also need to provide the `--schedule_csv_path` flag which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns:
+- `DAY`: An integer from 0 to 6 representing the day of the week where 0 is Monday and 6 is Sunday.
+- `START_TIME`: The start time of the email in the format `HH:MM`. 24-hour format.
+- `END_TIME`: The end time of the email in the format `HH:MM`. 24-hour format.
+
+For example:
 ```csv
 DAY,START_TIME,END_TIME
 0, 10:00, 11:00
@@ -91,12 +98,12 @@ DAY,START_TIME,END_TIME
 3, 14:00, 14:30
 4, 10:00, 11:00
 ```
-The CSV file represents the schedule for the emails. The script will send the email to the recruiter at a random time in the earliest possible range. See the following cases:
-1. If it is Monday 9:15 AM we should send email between 10:00 AM and 11:00 AM
+The script will send the email to the recruiter at a random time in the earliest possible range. See the following cases:
+1. If it is Monday 9:15 AM we should send email at a random time between 10:00 AM and 11:00 AM
 2. If it is Monday 10:30 AM we should send email right now since the time is between 10:00 AM and 11:00 AM
-3. If it is Monday 13:00 PM we should send email between 14:00 PM and 14:30 PM
-4. If it is Monday 15:00 PM we should send email between 10:00 AM and 11:00 AM on Tuesday
-5. If it is Friday 13:00 PM we should send email between 10:00 AM and 11:00 AM on Monday
+3. If it is Monday 13:00 PM we should send email at a random time between 14:00 PM and 14:30 PM
+4. If it is Monday 15:00 PM we should send email at a random time between 10:00 AM and 11:00 AM on Tuesday
+5. If it is Friday 13:00 PM we should send email at a random time between 10:00 AM and 11:00 AM on Monday
 
 I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
 
@@ -106,4 +113,4 @@ You can also set the `--timezone` flag to specify the timezone to use for schedu
 
 # Future
 
-I created this just to help me with my job search. I'm not really planning on adding any new features. However, if you have any suggestions or find any bugs feel free to open an issue or a pull request. The only improvement I can think of is to add a feature to schedule the emails to be sent later and adding more template variables.
+I created this just to help me with my job search. I'm not really planning on adding any new features. However, if you have any suggestions or find any bugs feel free to open an issue or a pull request. The only improvement I can think of is to add a feature to schedule the emails to be sent later natively without stripe. This would require significant engineering effort since the project would have to maintain a DB of scheduled emails and send the emails on time. Adding additional template variables would also be a nice feature to have.

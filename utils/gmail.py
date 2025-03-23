@@ -112,3 +112,14 @@ class GmailAPI:
             logger.exception("An error occurred sending the message")
             return False
         return sent_message
+
+    def get_current_user(self) -> dict:
+        """
+        Get the current user's information.
+
+        Returns:
+            dict: The current user's information.
+
+        """
+        logger.info("Getting current user information")
+        return self.service.users().getProfile(userId="me").execute()

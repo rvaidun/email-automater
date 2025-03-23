@@ -36,10 +36,6 @@ headers = {
     "x-streak-web-retry-count": "0",
 }
 
-params = {
-    "email": "rahul.vaidun@gmail.com",
-}
-
 
 class StreakSendLaterConfig(NamedTuple):
     """Data fields for the Streak send later configuration."""
@@ -51,6 +47,7 @@ class StreakSendLaterConfig(NamedTuple):
     draft_id: str
     send_date: datetime.datetime
     is_tracked: bool
+    email_address: str
 
 
 def schedule_send_later(
@@ -70,6 +67,9 @@ def schedule_send_later(
         "shouldBox": "false",
         "snippetKeyList": "[]",
         "toAddresses": f'["{config.to_address}"]',
+    }
+    params = {
+        "email": config.email_address,
     }
     response = requests.post(
         "https://api.streak.com/api/v2/sendlaters",

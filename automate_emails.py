@@ -36,6 +36,7 @@ class EnvironmentVariables(Enum):
     STREAK_TOKEN = "STREAK_TOKEN"  # noqa: S105
     TIMEZONE = "TIMEZONE"
     SCHEDULE_CSV_PATH = "SCHEDULE_CSV_PATH"
+    STREAK_EMAIL_ADDRESS = "STREAK_EMAIL_ADDRESS"
 
 
 # If modifying these scopes, delete the file token.json.
@@ -104,6 +105,15 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help=f"The timezone to use for scheduling emails env: \n \
             {EnvironmentVariables.TIMEZONE.value} \
+            Note: the argument tracked needs to be passed for this to be used",
+        nargs="?",
+    )
+    parser.add_argument(
+        "--email_address",
+        type=str,
+        help=f"The email address to use in streak scheduling emails env: \
+            {EnvironmentVariables.STREAK_EMAIL_ADDRESS.value} \
+            If not provided, the email address of the authenticated user will be used \
             Note: the argument tracked needs to be passed for this to be used",
         nargs="?",
     )
@@ -223,9 +233,16 @@ if __name__ == "__main__":
     # below this point the email is scheduled
     timezone = args.timezone or os.getenv(EnvironmentVariables.TIMEZONE.value)
     streak_token = os.getenv(EnvironmentVariables.STREAK_TOKEN.value)
-    if not streak_token:
+    streak_email_address = (
+        args.email_address
+        or os.getenv(EnvironmentVariables.STREAK_EMAIL_ADDRESS.value)
+        or gmail_api.get_current_user()["emailAddress"]
+    )
+    if not streak_token or not streak_email_address:
         draft = gmail_api.save_draft(email_message)
-        logger.error("Streak token not provided, only adding email to drafts")
+        logger.error(
+            "Required streak parameters not provided, only adding email to drafts"
+        )
         sys.exit(1)
     csv_path = args.schedule_csv_path or os.getenv(
         EnvironmentVariables.SCHEDULE_CSV_PATH.value
@@ -258,6 +275,7 @@ if __name__ == "__main__":
             draft_id=draft["id"],
             send_date=send_time,
             is_tracked=True,
+            email_address=streak_email_address,
         )
         schedule_send_later(config)
     else:
