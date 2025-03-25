@@ -103,15 +103,17 @@ def parse_args() -> argparse.Namespace:
         "--schedule_csv_path",
         type=bool,
         help=f"CSV to use for scheduling the emails \
-            env: {EnvironmentVariables.SCHEDULE_CSV_PATH.value}",
+            env: {EnvironmentVariables.SCHEDULE_CSV_PATH.value}. \
+            Note: the argument scheduled needs to be passed for this to be used",
         nargs="?",
     )
     parser.add_argument(
         "--timezone",
+        "-tz",
         type=str,
-        help=f"The timezone to use for scheduling emails env: \n \
+        help=f"The timezone to use for scheduling emails (America/New_York) env:\
             {EnvironmentVariables.TIMEZONE.value} \
-            Note: the argument tracked needs to be passed for this to be used",
+            Note: the argument scheduled needs to be passed for this to be used",
         nargs="?",
     )
     parser.add_argument(
@@ -119,14 +121,14 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help=f"The email address to use in streak scheduling emails env: \
             {EnvironmentVariables.STREAK_EMAIL_ADDRESS.value} \
-            If not provided, the email address of the authenticated user will be used \
-            Note: the argument tracked needs to be passed for this to be used",
+            If not provided, the email address of the authenticated user will be used. \
+            Note: the argument scheduled needs to be passed for this to be used",
         nargs="?",
     )
     parser.add_argument(
         "--token_path",
         type=str,
-        help="The path to the token.json file",
+        help="The path to the token.json file. Defaults to token.json",
         nargs="?",
         default="token.json",
     )
