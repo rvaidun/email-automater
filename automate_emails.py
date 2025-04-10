@@ -17,8 +17,10 @@ from dotenv import load_dotenv
 
 import utils.schedule_helper as sh
 from utils.customformatter import CustomFormatter
+from utils.followup import track_email
 from utils.gmail import GmailAPI
 from utils.streak import StreakSendLaterConfig, schedule_send_later
+from utils.cron_setup import setup_cron_job
 
 load_dotenv()
 
@@ -43,6 +45,7 @@ class EnvironmentVariables(Enum):
     TIMEZONE = "TIMEZONE"
     SCHEDULE_CSV_PATH = "SCHEDULE_CSV_PATH"
     STREAK_EMAIL_ADDRESS = "STREAK_EMAIL_ADDRESS"
+    ENABLE_FOLLOWUP = "ENABLE_FOLLOWUP"
 
 
 # If modifying these scopes, delete the file token.json.
@@ -132,6 +135,12 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         default="token.json",
     )
+    parser.add_argument(
+        "--enable_followup",
+        help=f"Whether to enable automatic follow-up for this email. env: \
+            {EnvironmentVariables.ENABLE_FOLLOWUP.value}",
+        action="store_true",
+    )
 
     return parser.parse_args()
 
@@ -209,6 +218,17 @@ if __name__ == "__main__":
     should_schedule = args.schedule or os.getenv(
         EnvironmentVariables.ENABLE_STREAK_SHEDULING.value
     )
+    # Always enable follow-up by default, but still allow disabling via env var if set to "False"
+    enable_followup_env = os.getenv(EnvironmentVariables.ENABLE_FOLLOWUP.value)
+    enable_followup = True
+    if enable_followup_env and enable_followup_env.lower() == "false":
+        enable_followup = False
+    # Override with command line argument if provided
+    if args.enable_followup:
+        enable_followup = True
+
+    # Log follow-up status
+    logger.info("Auto follow-up is %s", "enabled" if enable_followup else "disabled")
 
     token_path = Path(args.token_path)
     attachment = (
@@ -246,9 +266,35 @@ if __name__ == "__main__":
         args.recruiter_name,
         args.recruiter_company,
     )
+    
+    def save_for_followup(draft_or_sent):
+        if enable_followup:
+            thread_id = draft_or_sent.get("message", {}).get("threadId") or draft_or_sent.get("threadId")
+            if thread_id:
+                logger.info("Tracking email for follow-up")
+                track_email(
+                    args.recruiter_email,
+                    args.recruiter_name,
+                    args.recruiter_company,
+                    thread_id,
+                    subject,
+                )
+                
+                # Set up automatic cron job for follow-ups if enabled
+                try:
+                    if setup_cron_job():
+                        logger.info("Automatic follow-up cron job set up successfully")
+                    else:
+                        logger.warning("Could not set up automatic follow-up cron job")
+                except Exception as e:
+                    logger.warning(f"Error setting up cron job: {e}")
+            else:
+                logger.warning("Could not track email for follow-up: No thread ID")
+    
     if not should_schedule:
         logger.info("Draft saved")
         draft = gmail_api.save_draft(email_message)
+        save_for_followup(draft)
         sys.exit(0)
 
     # below this point the email is scheduled
@@ -256,6 +302,7 @@ if __name__ == "__main__":
     streak_token = os.getenv(EnvironmentVariables.STREAK_TOKEN.value)
     if not streak_token:
         draft = gmail_api.save_draft(email_message)
+        save_for_followup(draft)
         logger.error(
             "Scheduling error: No streak token provided. Only adding email to drafts"
         )
@@ -266,6 +313,7 @@ if __name__ == "__main__":
     csv_path = Path(csv_path)
     if not csv_path.exists():
         draft = gmail_api.save_draft(email_message)
+        save_for_followup(draft)
         logger.error(
             "Scheduling Error: No schedule csv file found. Only adding email to drafts"
         )
@@ -277,6 +325,7 @@ if __name__ == "__main__":
     )
     if not streak_email_address:
         draft = gmail_api.save_draft(email_message)
+        save_for_followup(draft)
         logger.warning(
             "%s not provided. Streak scheduling may not work as expected",
             EnvironmentVariables.STREAK_EMAIL_ADDRESS.value,
@@ -290,9 +339,11 @@ if __name__ == "__main__":
     send_time = sh.get_scheduled_send_time(day_ranges, timezone)
 
     if send_time is True:
-        gmail_api.send_now(email_message)  # current time is within allowed range
+        sent = gmail_api.send_now(email_message)  # current time is within allowed range
+        save_for_followup(sent)
     elif isinstance(send_time, datetime.datetime):
         draft = gmail_api.save_draft(email_message)
+        save_for_followup(draft)
         config = StreakSendLaterConfig(
             token=streak_token,
             to_address=args.recruiter_email,
