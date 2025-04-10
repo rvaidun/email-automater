@@ -6,3 +6,7 @@ credentials.json
 *email_template.txt
 *email_template.html
 *.pyc
+
+followup_db.json
+followup.log
+__pycache__/
