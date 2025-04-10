@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 
 # Environment variables
 FOLLOWUP_BODY_PATH = os.getenv("FOLLOWUP_BODY_PATH", "followup_template.txt")
-FOLLOWUP_SUBJECT = os.getenv("FOLLOWUP_SUBJECT", "Follow-up: $recruiter_company Application")
+FOLLOWUP_SUBJECT = os.getenv(
+    "FOLLOWUP_SUBJECT", "Follow-up: $recruiter_company Application"
+)
 TIMEZONE = os.getenv("TIMEZONE", "America/Los_Angeles")
 STREAK_TOKEN = os.getenv("STREAK_TOKEN")
 SCHEDULE_CSV_PATH = os.getenv("SCHEDULE_CSV_PATH", "scheduler.csv")
@@ -55,8 +57,8 @@ def create_email_message(
     return message
 
 
-def main():
-    """Main function to send follow-up emails."""
+def main() -> None:  # noqa: C901, PLR0915
+    """Send follow-up emails."""
     # Initialize Gmail API
     gmail_api = GmailAPI()
 
@@ -80,12 +82,12 @@ def main():
         logger.info("No pending follow-ups found")
         return
 
-    logger.info(f"Found {len(pending_followups)} pending follow-ups")
+    logger.info("Found %d pending follow-ups", len(pending_followups))
 
     # Load follow-up template
     template_path = Path(FOLLOWUP_BODY_PATH)
     if not template_path.exists():
-        logger.error(f"Follow-up template not found: {FOLLOWUP_BODY_PATH}")
+        logger.error("Follow-up template not found: %s", FOLLOWUP_BODY_PATH)
         sys.exit(1)
 
     template = template_path.read_text()
@@ -95,7 +97,7 @@ def main():
     if should_schedule:
         csv_path = Path(SCHEDULE_CSV_PATH)
         if not csv_path.exists():
-            logger.error(f"Schedule CSV file not found: {SCHEDULE_CSV_PATH}")
+            logger.error("Schedule CSV file not found: %s", SCHEDULE_CSV_PATH)
             should_schedule = False
 
     if should_schedule:
@@ -103,7 +105,9 @@ def main():
             csv_reader = sh.csv.DictReader(file)
             day_ranges = sh.parse_time_ranges_csv(csv_reader)
 
-    streak_email_address = STREAK_EMAIL_ADDRESS or gmail_api.get_current_user()["emailAddress"]
+    streak_email_address = (
+        STREAK_EMAIL_ADDRESS or gmail_api.get_current_user()["emailAddress"]
+    )
 
     # Process each follow-up
     for email_data in pending_followups:
@@ -115,8 +119,7 @@ def main():
         )
 
         subject = process_string(
-            FOLLOWUP_SUBJECT,
-            recruiter_company=email_data["recruiter_company"]
+            FOLLOWUP_SUBJECT, recruiter_company=email_data["recruiter_company"]
         )
 
         email_message = create_email_message(

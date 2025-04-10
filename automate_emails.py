@@ -218,7 +218,7 @@ if __name__ == "__main__":
     should_schedule = args.schedule or os.getenv(
         EnvironmentVariables.ENABLE_STREAK_SHEDULING.value
     )
-    # Always enable follow-up by default, but still allow disabling via env var if set to "False"
+    # enable follow-up by default, but still allow disabling via env var if set to False
     enable_followup_env = os.getenv(EnvironmentVariables.ENABLE_FOLLOWUP.value)
     enable_followup = True
     if enable_followup_env and enable_followup_env.lower() == "false":
@@ -267,9 +267,16 @@ if __name__ == "__main__":
         args.recruiter_company,
     )
 
-    def save_for_followup(draft_or_sent):
+    def save_for_followup(draft_or_sent: dict) -> None:
+        """
+        Save the email for follow-up tracking.
+
+        draft_or_sent: The draft or sent email object.
+        """
         if enable_followup:
-            thread_id = draft_or_sent.get("message", {}).get("threadId") or draft_or_sent.get("threadId")
+            thread_id = draft_or_sent.get("message", {}).get(
+                "threadId"
+            ) or draft_or_sent.get("threadId")
             if thread_id:
                 logger.info("Tracking email for follow-up")
                 track_email(
@@ -286,8 +293,8 @@ if __name__ == "__main__":
                         logger.info("Automatic follow-up cron job set up successfully")
                     else:
                         logger.warning("Could not set up automatic follow-up cron job")
-                except Exception as e:
-                    logger.warning(f"Error setting up cron job: {e}")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning("Error setting up cron job: %s", e)
             else:
                 logger.warning("Could not track email for follow-up: No thread ID")
 
