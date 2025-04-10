@@ -10,6 +10,7 @@ dependencies = [
     "google-api-python-client>=2.165.0",
     "google-auth-oauthlib>=1.2.1",
     "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
 ]
 
 [tool.ruff]
