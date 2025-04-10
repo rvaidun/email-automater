@@ -16,11 +16,11 @@ from string import Template
 from dotenv import load_dotenv
 
 import utils.schedule_helper as sh
+from utils.cron_setup import setup_cron_job
 from utils.customformatter import CustomFormatter
 from utils.followup import track_email
 from utils.gmail import GmailAPI
 from utils.streak import StreakSendLaterConfig, schedule_send_later
-from utils.cron_setup import setup_cron_job
 
 load_dotenv()
 
@@ -266,7 +266,7 @@ if __name__ == "__main__":
         args.recruiter_name,
         args.recruiter_company,
     )
-    
+
     def save_for_followup(draft_or_sent):
         if enable_followup:
             thread_id = draft_or_sent.get("message", {}).get("threadId") or draft_or_sent.get("threadId")
@@ -279,7 +279,7 @@ if __name__ == "__main__":
                     thread_id,
                     subject,
                 )
-                
+
                 # Set up automatic cron job for follow-ups if enabled
                 try:
                     if setup_cron_job():
@@ -290,7 +290,7 @@ if __name__ == "__main__":
                     logger.warning(f"Error setting up cron job: {e}")
             else:
                 logger.warning("Could not track email for follow-up: No thread ID")
-    
+
     if not should_schedule:
         logger.info("Draft saved")
         draft = gmail_api.save_draft(email_message)
