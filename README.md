@@ -136,3 +136,76 @@ You can also set the `--timezone` flag to specify the timezone to use for schedu
 # Future
 
 I created this just to help me with my job search. I'm not really planning on adding any new features. However, if you have any suggestions or find any bugs feel free to open an issue or a pull request. The only improvement I can think of is to add a feature to schedule the emails to be sent later natively without stripe. This would require significant engineering effort since the project would have to maintain a DB of scheduled emails and send the emails on time. Adding additional template variables would also be a nice feature to have.
+
+# Follow-up Features
+
+This project includes an automated follow-up system that can send follow-up emails to recruiters a few days after your initial contact.
+
+## Setup and Configuration
+
+### Environment Variables
+To enable and configure the follow-up feature, add these variables to your `.env` file:
+
+```
+# Follow-up configuration
+ENABLE_FOLLOWUP=True
+FOLLOWUP_BODY_PATH=followup_template.html
+FOLLOWUP_SUBJECT=Follow-up: $recruiter_company Application
+```
+
+### Creating a Follow-up Template
+Create a `followup_template.html` file with your follow-up message. You can use the same template variables as the initial email:
+
+```html
+<p>Hello $recruiter_name,</p>
+
+<p>I wanted to follow up on my application to $recruiter_company. I'm still very interested in the position and would appreciate any updates you can provide.</p>
+
+<p>Best regards,<br>
+Your Name</p>
+```
+
+## How It Works
+
+1. When you send an initial email, it is tracked in the `followup_db.json` file
+2. The system automatically sets up a cron job to check for pending follow-ups daily
+3. Follow-up emails will be sent automatically after the specified wait period (default: 3 days)
+4. Each contact will receive a maximum of 2 follow-up emails
+
+## Cron Job Management
+
+The system automatically creates a cron job that runs daily at 10 AM to check for and send pending follow-ups.
+
+### Verifying the Cron Job
+To verify that the cron job has been successfully added:
+
+```bash
+crontab -l
+```
+
+You should see a line like:
+```
+0 10 * * * cd /path/to/your/project && ./run_followups.sh
+```
+
+### Manually Deleting the Cron Job
+If you want to stop the automatic follow-ups:
+
+1. Edit your crontab:
+```bash
+crontab -e
+```
+
+2. Find and delete the line containing `run_followups.sh`
+3. Save and exit the editor
+
+### Windows Users
+For Windows, the automatic cron setup is not supported. Instead:
+1. Open Task Scheduler
+2. Create a Basic Task > Daily > Start a program
+3. Add the path to `run_followups.sh` or create a batch file equivalent
+
+## Customizing Follow-up Behavior
+
+- The default waiting period between the initial email and the first follow-up is 3 days
+- The system will send a maximum of 2 follow-up emails per recruiter
