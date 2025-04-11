@@ -67,6 +67,7 @@ def parse_args() -> argparse.Namespace:
         "recruiter_email", type=str, help="The email address of the recruiter"
     )
     parser.add_argument(
+        "-s",
         "--subject",
         type=str,
         help=f"The subject of the email message as a string template env: \
@@ -74,6 +75,7 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
     )
     parser.add_argument(
+        "-m",
         "--message_body_path",
         type=str,
         help=f"The path to the message body template. env: \
@@ -81,6 +83,7 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
     )
     parser.add_argument(
+        "-ap",
         "--attachment_path",
         type=str,
         help=f"The path to the attachment file, if this is provided, attachment_name \
@@ -88,6 +91,7 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
     )
     parser.add_argument(
+        "-an",
         "--attachment_name",
         type=str,
         help=f"The name of the attachment file env: \
@@ -95,6 +99,7 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
     )
     parser.add_argument(
+        "-sch",
         "--schedule",
         help=f"Whether the email should be tracked or not. env \
             {EnvironmentVariables.ENABLE_STREAK_SHEDULING.value}. \
@@ -103,6 +108,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
     )
     parser.add_argument(
+        "-scsv",
         "--schedule_csv_path",
         type=bool,
         help=f"CSV to use for scheduling the emails \
@@ -111,8 +117,8 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
     )
     parser.add_argument(
-        "--timezone",
         "-tz",
+        "--timezone",
         type=str,
         help=f"The timezone to use for scheduling emails (America/New_York) env:\
             {EnvironmentVariables.TIMEZONE.value} \
@@ -120,6 +126,7 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
     )
     parser.add_argument(
+        "-e",
         "--email_address",
         type=str,
         help=f"The email address to use in streak scheduling emails env: \
@@ -129,6 +136,7 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
     )
     parser.add_argument(
+        "-t",
         "--token_path",
         type=str,
         help="The path to the token.json file. Defaults to token.json",
@@ -136,7 +144,8 @@ def parse_args() -> argparse.Namespace:
         default="token.json",
     )
     parser.add_argument(
-        "--enable_followup",
+        "-f",
+        "--followup",
         help=f"Whether to enable automatic follow-up for this email. env: \
             {EnvironmentVariables.ENABLE_FOLLOWUP.value}",
         action="store_true",

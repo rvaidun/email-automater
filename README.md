@@ -56,13 +56,18 @@ I am interested in the position at $recruiter_company.
 # Usage
 
 ```
-usage: automate_emails.py [-h] [--subject [SUBJECT]]
-                          [--message_body_path [MESSAGE_BODY_PATH]]
-                          [--attachment_path [ATTACHMENT_PATH]]
-                          [--attachment_name [ATTACHMENT_NAME]] [--schedule]
-                          [--schedule_csv_path [SCHEDULE_CSV_PATH]] [--timezone [TIMEZONE]]
-                          [--email_address [EMAIL_ADDRESS]] [--token_path [TOKEN_PATH]]
-                          recruiter_company recruiter_name recruiter_email
+usage: automate_emails.py [-h] [--subject -s [SUBJECT]]
+                          [--message_body_path -mb [MESSAGE_BODY_PATH]]
+                          [--attachment_path -ap [ATTACHMENT_PATH]]
+                          [--attachment_name -an [ATTACHMENT_NAME]]
+                          [--schedule -sch]
+                          [--schedule_csv_path -scsv[SCHEDULE_CSV_PATH]]
+                          [--timezone [TIMEZONE]]
+                          [--email_address -e [EMAIL_ADDRESS]]
+                          [--token_path -tp [TOKEN_PATH]]
+                          [--enable_followup -f ]
+                          recruiter_company recruiter_name
+                          recruiter_email
 
 Automates sending emails to recruiters
 
@@ -73,32 +78,44 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --subject [SUBJECT]   The subject of the email message as a string template env:
-                        EMAIL_SUBJECT
+  --subject [SUBJECT]   The subject of the email message as a string
+                        template env: EMAIL_SUBJECT
   --message_body_path [MESSAGE_BODY_PATH]
-                        The path to the message body template. env: MESSAGE_BODY_PATH
+                        The path to the message body template. env:
+                        MESSAGE_BODY_PATH
   --attachment_path [ATTACHMENT_PATH]
-                        The path to the attachment file, if this is provided, attachment_name
-                        must also be provided env: ATTACHMENT_PATH
+                        The path to the attachment file, if this is
+                        provided, attachment_name must also be
+                        provided env: ATTACHMENT_PATH
   --attachment_name [ATTACHMENT_NAME]
-                        The name of the attachment file env: ATTACHMENT_NAME
-  --schedule            Whether the email should be tracked or not. env
-                        ENABLE_STREAK_SCHEDULING. If set, the streak token must be provided
-                        via env variable STREAK_TOKEN
+                        The name of the attachment file env:
+                        ATTACHMENT_NAME
+  --schedule            Whether the email should be tracked or not.
+                        env ENABLE_STREAK_SCHEDULING. If set, the
+                        streak token must be provided via env
+                        variable STREAK_TOKEN
   --schedule_csv_path [SCHEDULE_CSV_PATH]
-                        CSV to use for scheduling the emails env: SCHEDULE_CSV_PATH. Note:
-                        the argument scheduled needs to be passed for this to be used
+                        CSV to use for scheduling the emails env:
+                        SCHEDULE_CSV_PATH. Note: the argument
+                        scheduled needs to be passed for this to be
+                        used
   --timezone, -tz [TIMEZONE]
-                        The timezone to use for scheduling emails (America/New_York) env:
-                        TIMEZONE Note: the argument scheduled needs to be passed for this to
-                        be used
+                        The timezone to use for scheduling emails
+                        (America/New_York) env: TIMEZONE Note: the
+                        argument scheduled needs to be passed for
+                        this to be used
   --email_address [EMAIL_ADDRESS]
-                        The email address to use in streak scheduling emails env:
-                        STREAK_EMAIL_ADDRESS If not provided, the email address of the
-                        authenticated user will be used. Note: the argument scheduled needs
-                        to be passed for this to be used
+                        The email address to use in streak scheduling
+                        emails env: STREAK_EMAIL_ADDRESS If not
+                        provided, the email address of the
+                        authenticated user will be used. Note: the
+                        argument scheduled needs to be passed for
+                        this to be used
   --token_path [TOKEN_PATH]
-                        The path to the token.json file. Defaults to token.json
+                        The path to the token.json file. Defaults to
+                        token.json
+  --enable_followup     Whether to enable automatic follow-up for
+                        this email. env: ENABLE_FOLLOWUP
 ```
 
 ## Schedule Emails
@@ -137,7 +154,12 @@ You can also set the `--timezone` flag to specify the timezone to use for schedu
 
 This project includes an automated follow-up system that can send follow-up emails to recruiters a few days after your initial contact.
 
-### Setup and Configuration
+### How It Works
+
+1. When you send an initial email, it is tracked in the `followup_db.json` file
+2. The system automatically sets up a cron job to check for pending follow-ups daily
+3. Follow-up emails will be sent automatically after the specified wait period (default: 3 days)
+4. Each contact will receive a maximum of 2 follow-up emails
 
 ### Environment Variables
 To enable and configure the follow-up feature, add these variables to your `.env` file:
@@ -160,13 +182,6 @@ Create a `followup_template.html` file with your follow-up message. You can use 
 <p>Best regards,<br>
 Your Name</p>
 ```
-
-### How It Works
-
-1. When you send an initial email, it is tracked in the `followup_db.json` file
-2. The system automatically sets up a cron job to check for pending follow-ups daily
-3. Follow-up emails will be sent automatically after the specified wait period (default: 3 days)
-4. Each contact will receive a maximum of 2 follow-up emails
 
 ### Cron Job Management
 
@@ -201,7 +216,7 @@ For Windows, the automatic cron setup is not supported. Instead:
 2. Create a Basic Task > Daily > Start a program
 3. Add the path to `run_followups.sh` or create a batch file equivalent
 
-## Customizing Follow-up Behavior
+### Customizing Follow-up Behavior
 
 - The default waiting period between the initial email and the first follow-up is 3 days
 - The system will send a maximum of 2 follow-up emails per recruiter
