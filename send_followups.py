@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 import utils.schedule_helper as sh
 from utils.customformatter import CustomFormatter
-from utils.followup import get_pending_followups, update_followup_status
+from utils.followup import FollowupManager
 from utils.gmail import GmailAPI
 from utils.streak import StreakSendLaterConfig, schedule_send_later
 
@@ -36,6 +36,8 @@ TIMEZONE = os.getenv("TIMEZONE", "America/Los_Angeles")
 STREAK_TOKEN = os.getenv("STREAK_TOKEN")
 SCHEDULE_CSV_PATH = os.getenv("SCHEDULE_CSV_PATH", "scheduler.csv")
 STREAK_EMAIL_ADDRESS = os.getenv("STREAK_EMAIL_ADDRESS")
+FOLLOWUP_DB_PATH = os.getenv("FOLLOWUP_DB_PATH", "followup_db.json")
+FOLLOWUP_WAIT_DAYS = int(os.getenv("FOLLOWUP_WAIT_DAYS", "3"))
 
 
 def process_string(s: str, **kwargs: dict) -> str:
@@ -62,6 +64,13 @@ def main() -> None:  # noqa: C901, PLR0915
     # Initialize Gmail API
     gmail_api = GmailAPI()
 
+    # Initialize FollowupManager
+    followup_manager = FollowupManager(
+        db_path=FOLLOWUP_DB_PATH,
+        followup_wait_days=FOLLOWUP_WAIT_DAYS,
+        timezone=TIMEZONE
+    )
+
     # Load token
     token_path = Path("token.json")
     if not token_path.exists():
@@ -76,7 +85,7 @@ def main() -> None:  # noqa: C901, PLR0915
         file.write(creds.to_json())
 
     # Get pending follow-ups
-    pending_followups = get_pending_followups()
+    pending_followups = followup_manager.get_pending_followups()
 
     if not pending_followups:
         logger.info("No pending follow-ups found")
@@ -139,14 +148,14 @@ def main() -> None:  # noqa: C901, PLR0915
         if not should_schedule:
             logger.info("Draft saved")
             draft = gmail_api.save_draft(email_message)
-            update_followup_status(email_data["recruiter_email"])
+            followup_manager.update_followup_status(email_data["recruiter_email"])
         else:
             send_time = sh.get_scheduled_send_time(day_ranges, TIMEZONE)
 
             if send_time is True:
                 # Current time is within allowed range
                 gmail_api.send_now(email_message)
-                update_followup_status(email_data["recruiter_email"])
+                followup_manager.update_followup_status(email_data["recruiter_email"])
             elif isinstance(send_time, sh.datetime.datetime):
                 draft = gmail_api.save_draft(email_message)
                 config = StreakSendLaterConfig(
@@ -160,7 +169,7 @@ def main() -> None:  # noqa: C901, PLR0915
                     email_address=streak_email_address,
                 )
                 schedule_send_later(config)
-                update_followup_status(email_data["recruiter_email"])
+                followup_manager.update_followup_status(email_data["recruiter_email"])
             else:
                 logger.error("Failed to schedule follow-up email")
 
