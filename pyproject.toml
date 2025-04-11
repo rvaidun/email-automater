@@ -23,6 +23,7 @@ ignore = ["D211", "D212", "D203", "COM812"]
 [tool.ruff.lint.per-file-ignores]
 # Ignore pytest rules outside tests directory
 "tests/**/*" = ["INP", "D100", "S101", "ANN", "DTZ"]
+"tests/test_gmail.py" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

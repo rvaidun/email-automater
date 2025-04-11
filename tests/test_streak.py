@@ -13,7 +13,7 @@ from utils.streak import StreakSendLaterConfig, schedule_send_later
 def mock_config():
     """Create a mock configuration for testing."""
     return StreakSendLaterConfig(
-        token="test_token",
+        token="test_token",  # noqa: S106
         to_address="test@example.com",
         subject="Test Subject",
         thread_id="test_thread",
@@ -55,7 +55,10 @@ def test_schedule_send_later_success(mock_config):
         assert data["toAddresses"] == '["test@example.com"]'
 
         # Verify the timestamp conversion
-        expected_timestamp = int(datetime.datetime(2024, 4, 10, 12, 0, 0, tzinfo=datetime.UTC).timestamp() * 1000)
+        expected_timestamp = int(
+            datetime.datetime(2024, 4, 10, 12, 0, 0, tzinfo=datetime.UTC).timestamp()
+            * 1000
+        )
         assert int(data["sendDate"]) == expected_timestamp
 
 
@@ -81,10 +84,12 @@ def test_schedule_send_later_timezone_conversion():
     """Test that the send date is properly converted to UTC."""
     # Create a config with a non-UTC timezone
     local_time = datetime.datetime(2024, 4, 10, 12, 0, 0)
-    local_time = local_time.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=-4)))  # EDT
-    
+    local_time = local_time.replace(
+        tzinfo=datetime.timezone(datetime.timedelta(hours=-4))
+    )  # EDT
+
     config = StreakSendLaterConfig(
-        token="test_token",
+        token="test_token",  # noqa: S106
         to_address="test@example.com",
         subject="Test Subject",
         thread_id="test_thread",

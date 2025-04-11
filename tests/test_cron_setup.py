@@ -1,6 +1,5 @@
 """Unit tests for the cron_setup module."""
 
-import platform
 import subprocess
 from pathlib import Path, PosixPath
 from unittest.mock import MagicMock, patch
@@ -71,7 +70,7 @@ def test_supported_platform(system, mock_script_path, mock_working_dir):
 
         # Verify results
         assert result is True
-        assert mock_script_path.stat().st_mode & 0o755 == 0o755
+        assert mock_script_path.stat().st_mode & 0o755 == 0o755  # noqa: PLR2004
 
         # Verify crontab listing was called
         mock_run.assert_called_once_with(
