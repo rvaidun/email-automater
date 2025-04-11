@@ -11,3 +11,4 @@ credentials.json
 followup_db.json
 followup.log
 __pycache__/
+.coverage
