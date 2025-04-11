@@ -9,7 +9,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def get_working_directory() -> str:
+def get_working_directory() -> Path:
     """Get the absolute path of the current working directory."""
     return Path(__file__).resolve().parent.parent
 
