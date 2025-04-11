@@ -71,13 +71,18 @@ def schedule_send_later(
     params = {
         "email": config.email_address,
     }
-    response = requests.post(
-        "https://api.streak.com/api/v2/sendlaters",
-        params=params,
-        headers=headers,
-        data=data,
-        timeout=10,
-    )
+    try:
+        response = requests.post(
+            "https://api.streak.com/api/v2/sendlaters",
+            params=params,
+            headers=headers,
+            data=data,
+            timeout=10,
+        )
+    except requests.RequestException:
+        logger.exception("Error scheduling email to be sent later: %s")
+        return False
+
     if not response.ok:
         logger.error("Failed to schedule email to be sent later")
         logger.error(response.text)
