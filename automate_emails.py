@@ -12,6 +12,7 @@ from email.message import EmailMessage
 from enum import Enum
 from pathlib import Path
 from string import Template
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -122,7 +123,8 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help=f"The timezone to use for scheduling emails (America/New_York) env:\
             {EnvironmentVariables.TIMEZONE.value} \
-            Note: the argument scheduled needs to be passed for this to be used",
+            This is used to determine the time range so it should be the recepeint's \
+            timezone. ",
         nargs="?",
     )
     parser.add_argument(
@@ -206,36 +208,67 @@ def create_email_message(
     return message
 
 
+def schedule_send(
+    timezone: str,
+    csv_path: str,
+    draft: str,
+    streak_token: str,
+    streak_email_address: str,
+) -> bool:
+    """
+    Schedule the email to be sent later using Streak.
+
+    timezone: The timezone to use for scheduling.
+    csv_path: The path to the CSV file containing the schedule.
+    draft: The draft email object.
+    streak_token: The Streak API token.
+    streak_email_address: The email address to use in Streak scheduling.
+    """
+    if not streak_token:
+        logger.error("Scheduling error: No streak token provided.")
+        return False
+    if not csv_path:
+        logger.error("Scheduling error: No schedule csv file provided.")
+        return False
+    csv_path = Path(csv_path)
+    if not csv_path.exists():
+        logger.error("Scheduling Error: No schedule csv file found.")
+        return False
+    if not streak_email_address:
+        logger.warning(
+            "Scheduling warning %s not provided. Streak scheduling may not work as \
+            expected",
+            EnvironmentVariables.STREAK_EMAIL_ADDRESS.value,
+        )
+    csv_reader = csv.DictReader(file)
+    day_ranges = sh.parse_time_ranges_csv(csv_reader)
+
+    send_time = sh.get_scheduled_send_time(day_ranges, timezone)
+    if send_time is True:
+        # current time is within allowed range
+        # send time should be 10 minutes from now
+        send_time = datetime.datetime.now(tz=ZoneInfo(timezone)) + datetime.timedelta(
+            minutes=10
+        )
+    config = StreakSendLaterConfig(
+        token=streak_token,
+        to_address=args.recruiter_email,
+        subject=subject,
+        thread_id=draft["message"]["threadId"],
+        draft_id=draft["id"],
+        send_date=send_time,
+        is_tracked=True,
+        email_address=streak_email_address,
+    )
+    return schedule_send_later(config)
+
+
 def save_for_followup(fm: FollowupManager, draft_or_sent: dict) -> None:
     """
     Save the email for follow-up tracking.
 
     draft_or_sent: The draft or sent email object.
     """
-    if enable_followup:
-        thread_id = draft_or_sent.get("message", {}).get(
-            "threadId"
-        ) or draft_or_sent.get("threadId")
-        if thread_id:
-            logger.info("Tracking email for follow-up")
-            fm.track_email(
-                args.recruiter_email,
-                args.recruiter_name,
-                args.recruiter_company,
-                thread_id,
-                subject,
-            )
-
-            # Set up automatic cron job for follow-ups if enabled
-            try:
-                if setup_cron_job():
-                    logger.info("Automatic follow-up cron job set up successfully")
-                else:
-                    logger.warning("Could not set up automatic follow-up cron job")
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Error setting up cron job: %s", e)
-        else:
-            logger.warning("Could not track email for follow-up: No thread ID")
 
 
 if __name__ == "__main__":
@@ -313,74 +346,43 @@ if __name__ == "__main__":
         args.recruiter_name,
         args.recruiter_company,
     )
-    if not should_schedule:
-        logger.info("Draft saved")
-        draft = gmail_api.save_draft(email_message)
-        sys.exit(0)
-
-    # below this point the email is scheduled
-    timezone = args.timezone or os.getenv(EnvironmentVariables.TIMEZONE.value)
-    streak_token = os.getenv(EnvironmentVariables.STREAK_TOKEN.value)
-    fm = FollowupManager(
-        db_path=os.getenv("FOLLOWUP_DB_PATH", "followup_db.json"),
-        followup_wait_days=int(os.getenv("FOLLOWUP_WAIT_DAYS", "3")),
-        timezone=timezone,
-    )
-    if not streak_token:
-        draft = gmail_api.save_draft(email_message)
-        save_for_followup(fm, draft)
-        logger.error(
-            "Scheduling error: No streak token provided. Only adding email to drafts"
+    draft = gmail_api.save_draft(email_message)
+    logger.info("Draft saved to gmail")
+    if should_schedule:
+        timezone = args.timezone or os.getenv(EnvironmentVariables.TIMEZONE.value)
+        streak_token = os.getenv(EnvironmentVariables.STREAK_TOKEN.value)
+        csv_path = args.schedule_csv_path or os.getenv(
+            EnvironmentVariables.SCHEDULE_CSV_PATH.value
         )
-        sys.exit(0)
-    csv_path = args.schedule_csv_path or os.getenv(
-        EnvironmentVariables.SCHEDULE_CSV_PATH.value
-    )
-    csv_path = Path(csv_path)
-    if not csv_path.exists():
-        draft = gmail_api.save_draft(email_message)
-        save_for_followup(fm, draft)
-        logger.error(
-            "Scheduling Error: No schedule csv file found. Only adding email to drafts"
+        streak_email_address = (
+            args.email_address
+            or os.getenv(EnvironmentVariables.STREAK_EMAIL_ADDRESS.value)
+            or gmail_api.get_current_user()["emailAddress"]
         )
-        sys.exit(1)
-    streak_email_address = (
-        args.email_address
-        or os.getenv(EnvironmentVariables.STREAK_EMAIL_ADDRESS.value)
-        or gmail_api.get_current_user()["emailAddress"]
-    )
-    if not streak_email_address:
-        draft = gmail_api.save_draft(email_message)
-        save_for_followup(fm, draft)
-        logger.warning(
-            "%s not provided. Streak scheduling may not work as expected",
-            EnvironmentVariables.STREAK_EMAIL_ADDRESS.value,
-        )
-        sys.exit(1)
+        schedule_send(timezone, csv_path, draft, streak_token, streak_email_address)
+    if enable_followup:
+        thread_id = draft.get("message", {}).get("threadId")
+        if thread_id:
+            fm = FollowupManager(
+                db_path=os.getenv("FOLLOWUP_DB_PATH", "followup_db.json"),
+                followup_wait_days=int(os.getenv("FOLLOWUP_WAIT_DAYS", "3")),
+                timezone=timezone,
+            )
+            fm.track_email(
+                args.recruiter_email,
+                args.recruiter_name,
+                args.recruiter_company,
+                thread_id,
+                subject,
+            )
 
-    with csv_path.open("r") as file:
-        csv_reader = csv.DictReader(file)
-        day_ranges = sh.parse_time_ranges_csv(csv_reader)
-
-    send_time = sh.get_scheduled_send_time(day_ranges, timezone)
-
-    if send_time is True:
-        sent = gmail_api.send_now(email_message)  # current time is within allowed range
-        save_for_followup(fm, sent)
-    elif isinstance(send_time, datetime.datetime):
-        draft = gmail_api.save_draft(email_message)
-        save_for_followup(fm, draft)
-        config = StreakSendLaterConfig(
-            token=streak_token,
-            to_address=args.recruiter_email,
-            subject=subject,
-            thread_id=draft["message"]["threadId"],
-            draft_id=draft["id"],
-            send_date=send_time,
-            is_tracked=True,
-            email_address=streak_email_address,
-        )
-        schedule_send_later(config)
-    else:
-        logger.error("Failed to schedule email")
-        sys.exit(1)
+            # Set up automatic cron job for follow-ups if enabled
+            try:
+                if setup_cron_job():
+                    logger.info("Automatic follow-up cron job set up successfully")
+                else:
+                    logger.warning("Could not set up automatic follow-up cron job")
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Error setting up cron job: %s", e)
+        else:
+            logger.warning("Could not track email for follow-up: No thread ID")
