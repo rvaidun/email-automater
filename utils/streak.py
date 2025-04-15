@@ -52,7 +52,7 @@ class StreakSendLaterConfig(NamedTuple):
 
 def schedule_send_later(
     config: StreakSendLaterConfig,
-) -> requests.Response:
+) -> bool:
     """Schedule an email to be sent later using Streak."""
     headers["authorization"] = f"Bearer {config.token}"
     # convert config.send_date to UTC
