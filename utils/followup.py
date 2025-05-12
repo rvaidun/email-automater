@@ -6,7 +6,6 @@ import logging
 import os
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
