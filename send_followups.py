@@ -90,13 +90,6 @@ def main() -> None:  # noqa: C901, PLR0915
         EnvironmentVariables.FOLLOWUP_DB_PATH,
         default="followup_db.json",
     )
-    followup_wait_days = int(
-        get_arg_or_env(
-            args.followup_wait_days,
-            EnvironmentVariables.FOLLOWUP_WAIT_DAYS,
-            default="3",
-        )
-    )
 
     # Initialize FollowupManager
     followup_manager = FollowupManager(

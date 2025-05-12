@@ -3,7 +3,6 @@
 import argparse
 import os
 from enum import Enum
-from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -19,7 +18,7 @@ class EnvironmentVariables(Enum):
     EMAIL_SUBJECT = "EMAIL_SUBJECT"
     MESSAGE_BODY_PATH = "MESSAGE_BODY_PATH"
     TIMEZONE = "TIMEZONE"
-    STREAK_TOKEN = "STREAK_TOKEN"
+    STREAK_TOKEN = "STREAK_TOKEN"  # noqa: S105
     STREAK_EMAIL_ADDRESS = "STREAK_EMAIL_ADDRESS"
     SCHEDULE_CSV_PATH = "SCHEDULE_CSV_PATH"
     ENABLE_STREAK_SCHEDULING = "ENABLE_STREAK_SCHEDULING"
@@ -45,18 +44,19 @@ def get_arg_or_env(
 ) -> str | None:
     """
     Get value from argument or environment variable, prioritizing argument.
-    
+
     Args:
         arg_value: The value from command line argument
         env_var: The environment variable to check
         required: Whether this value is required
         default: Default value to use if neither arg nor env var is set
-        
+
     Returns:
         The value from arg, env var, or default, in that order of precedence
-        
+
     Raises:
         ValueError: If required is True and no value is found
+
     """
     if arg_value is not None:
         return arg_value
@@ -72,14 +72,13 @@ def get_arg_or_env(
 def get_bool_arg_or_env(
     arg_value: bool | None,
     env_var: EnvironmentVariables,
-    default: bool = False,
 ) -> bool:
-    """Get boolean value from argument or environment variable, prioritizing argument."""
+    """Get boolean value from argument or environment variable prioritizing argument."""
     if arg_value is not None:
         return arg_value
     value = os.getenv(env_var.value)
     if value is None:
-        return default
+        return False
     return str_to_bool(value)
 
 

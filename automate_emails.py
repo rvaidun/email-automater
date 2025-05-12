@@ -229,7 +229,7 @@ if __name__ == "__main__":
         args.attachment_name,
         EnvironmentVariables.ATTACHMENT_NAME,
     )
-    
+
     if bool(attachment_path_string) ^ bool(attachment_name):  # XOR
         logger.error(
             "attachment_path and attachment_name must both appear if either is provided"
