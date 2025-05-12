@@ -73,22 +73,29 @@ def main() -> None:  # noqa: C901, PLR0915
     followup_body_path = get_arg_or_env(
         args.followup_body_path,
         EnvironmentVariables.FOLLOWUP_BODY_PATH,
-        "followup_template.txt",
+        default="followup_template.txt",
     )
     followup_subject = get_arg_or_env(
         args.followup_subject,
         EnvironmentVariables.FOLLOWUP_SUBJECT,
-        "Follow-up: $recruiter_company Application",
+        default="Follow-up: $recruiter_company Application",
     )
     timezone = get_arg_or_env(
         args.timezone,
         EnvironmentVariables.TIMEZONE,
-        "America/Los_Angeles",
+        default="America/Los_Angeles",
     )
     followup_db_path = get_arg_or_env(
         args.followup_db_path,
         EnvironmentVariables.FOLLOWUP_DB_PATH,
-        "followup_db.json",
+        default="followup_db.json",
+    )
+    followup_wait_days = int(
+        get_arg_or_env(
+            args.followup_wait_days,
+            EnvironmentVariables.FOLLOWUP_WAIT_DAYS,
+            default="3",
+        )
     )
 
     # Initialize FollowupManager
@@ -127,7 +134,10 @@ def main() -> None:  # noqa: C901, PLR0915
     template = template_path.read_text()
 
     # Check if scheduling is enabled
-    streak_token = get_arg_or_env(None, EnvironmentVariables.STREAK_TOKEN)
+    streak_token = get_arg_or_env(
+        None,
+        EnvironmentVariables.STREAK_TOKEN,
+    )
     should_schedule = bool(streak_token)
 
     if should_schedule:
@@ -135,7 +145,7 @@ def main() -> None:  # noqa: C901, PLR0915
             get_arg_or_env(
                 args.schedule_csv_path,
                 EnvironmentVariables.SCHEDULE_CSV_PATH,
-                "scheduler.csv",
+                default="scheduler.csv",
             )
         )
         if not csv_path.exists():
@@ -148,7 +158,10 @@ def main() -> None:  # noqa: C901, PLR0915
             day_ranges = sh.parse_time_ranges_csv(csv_reader)
 
     streak_email_address = (
-        get_arg_or_env(args.email_address, EnvironmentVariables.STREAK_EMAIL_ADDRESS)
+        get_arg_or_env(
+            args.email_address,
+            EnvironmentVariables.STREAK_EMAIL_ADDRESS,
+        )
         or gmail_api.get_current_user()["emailAddress"]
     )
 

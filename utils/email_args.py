@@ -41,15 +41,32 @@ def get_arg_or_env(
     env_var: EnvironmentVariables,
     *,
     required: bool = False,
+    default: str | None = None,
 ) -> str | None:
-    """Get value from argument or environment variable, prioritizing argument."""
+    """
+    Get value from argument or environment variable, prioritizing argument.
+    
+    Args:
+        arg_value: The value from command line argument
+        env_var: The environment variable to check
+        required: Whether this value is required
+        default: Default value to use if neither arg nor env var is set
+        
+    Returns:
+        The value from arg, env var, or default, in that order of precedence
+        
+    Raises:
+        ValueError: If required is True and no value is found
+    """
     if arg_value is not None:
         return arg_value
     value = os.getenv(env_var.value)
-    if required and not value:
+    if value is not None:
+        return value
+    if required:
         s = f"Missing required argument or environment variable: {env_var.value}"
         raise ValueError(s)
-    return value
+    return default
 
 
 def get_bool_arg_or_env(

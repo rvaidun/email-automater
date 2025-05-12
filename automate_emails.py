@@ -169,12 +169,22 @@ def save_for_followup(draft: dict) -> None:
     if thread_id:
         fm = FollowupManager(
             db_path=get_arg_or_env(
-                None, EnvironmentVariables.FOLLOWUP_DB_PATH, "followup_db.json"
+                None,
+                EnvironmentVariables.FOLLOWUP_DB_PATH,
+                default="followup_db.json",
             ),
             followup_wait_days=int(
-                get_arg_or_env(None, EnvironmentVariables.FOLLOWUP_WAIT_DAYS, "3")
+                get_arg_or_env(
+                    None,
+                    EnvironmentVariables.FOLLOWUP_WAIT_DAYS,
+                    default="3",
+                )
             ),
-            timezone=get_arg_or_env(None, EnvironmentVariables.TIMEZONE, "UTC"),
+            timezone=get_arg_or_env(
+                None,
+                EnvironmentVariables.TIMEZONE,
+                default="UTC",
+            ),
         )
         fm.track_email(
             args.recruiter_email,
@@ -201,16 +211,25 @@ if __name__ == "__main__":
     gmail_api = GmailAPI()
 
     # Get values from args or env vars
-    subject = get_arg_or_env(args.subject, EnvironmentVariables.EMAIL_SUBJECT)
+    subject = get_arg_or_env(
+        args.subject,
+        EnvironmentVariables.EMAIL_SUBJECT,
+        required=True,
+    )
     message_body_path = get_arg_or_env(
-        args.message_body_path, EnvironmentVariables.MESSAGE_BODY_PATH
+        args.message_body_path,
+        EnvironmentVariables.MESSAGE_BODY_PATH,
+        required=True,
     )
     attachment_path_string = get_arg_or_env(
-        args.attachment_path, EnvironmentVariables.ATTACHMENT_PATH
+        args.attachment_path,
+        EnvironmentVariables.ATTACHMENT_PATH,
     )
     attachment_name = get_arg_or_env(
-        args.attachment_name, EnvironmentVariables.ATTACHMENT_NAME
+        args.attachment_name,
+        EnvironmentVariables.ATTACHMENT_NAME,
     )
+    
     if bool(attachment_path_string) ^ bool(attachment_name):  # XOR
         logger.error(
             "attachment_path and attachment_name must both appear if either is provided"
@@ -218,10 +237,12 @@ if __name__ == "__main__":
         sys.exit(1)
 
     should_schedule = get_bool_arg_or_env(
-        args.schedule, EnvironmentVariables.ENABLE_STREAK_SCHEDULING
+        args.schedule,
+        EnvironmentVariables.ENABLE_STREAK_SCHEDULING,
     )
     enable_followup = get_bool_arg_or_env(
-        args.followup, EnvironmentVariables.ENABLE_FOLLOWUP
+        args.followup,
+        EnvironmentVariables.ENABLE_FOLLOWUP,
     )
 
     # Log follow-up status
@@ -266,14 +287,25 @@ if __name__ == "__main__":
     draft = gmail_api.save_draft(email_message)
     logger.info("Draft saved to gmail")
     if should_schedule:
-        timezone = get_arg_or_env(args.timezone, EnvironmentVariables.TIMEZONE)
-        streak_token = get_arg_or_env(None, EnvironmentVariables.STREAK_TOKEN)
+        timezone = get_arg_or_env(
+            args.timezone,
+            EnvironmentVariables.TIMEZONE,
+            default="UTC",
+        )
+        streak_token = get_arg_or_env(
+            None,
+            EnvironmentVariables.STREAK_TOKEN,
+            required=True,
+        )
         csv_path = get_arg_or_env(
-            args.schedule_csv_path, EnvironmentVariables.SCHEDULE_CSV_PATH
+            args.schedule_csv_path,
+            EnvironmentVariables.SCHEDULE_CSV_PATH,
+            required=True,
         )
         streak_email_address = (
             get_arg_or_env(
-                args.email_address, EnvironmentVariables.STREAK_EMAIL_ADDRESS
+                args.email_address,
+                EnvironmentVariables.STREAK_EMAIL_ADDRESS,
             )
             or gmail_api.get_current_user()["emailAddress"]
         )
