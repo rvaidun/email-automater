@@ -67,8 +67,6 @@ def main() -> None:  # noqa: C901, PLR0915
     # Initialize FollowupManager
     followup_manager = FollowupManager(
         db_path=FOLLOWUP_DB_PATH,
-        followup_wait_days=FOLLOWUP_WAIT_DAYS,
-        timezone=TIMEZONE,
     )
 
     # Load token

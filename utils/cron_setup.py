@@ -26,12 +26,12 @@ def setup_cron_job() -> bool | None:
 
     if system not in ["Darwin", "Linux"]:
         logger.warning("Automatic cron job setup is only supported on macOS and Linux")
-        logger.info("To set up follow-ups on Windows, use Task Scheduler:")
-        logger.info("1. Open Task Scheduler")
-        logger.info("2. Create Basic Task > Daily > Start a program")
-        logger.info(
-            "3. Add the path to run_followups.sh or create a batch file equivalent"
-        )
+        if system == "Windows":
+            logger.info(
+                "To set up follow-ups on Windows, use Task Scheduler: "
+                "1. Open Task Scheduler > 2. Create Basic Task > Daily > Start a program > "  # noqa: E501
+                "3. Add the path to run_followups.sh or create a batch file equivalent"
+            )
         return False
 
     # Get the full path to run_followups.sh

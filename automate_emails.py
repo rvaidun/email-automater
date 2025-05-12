@@ -20,6 +20,7 @@ import utils.schedule_helper as sh
 from utils.cron_setup import setup_cron_job
 from utils.customformatter import CustomFormatter
 from utils.followup import FollowupManager
+from utils.funcs import str_to_bool
 from utils.gmail import GmailAPI
 from utils.streak import StreakSendLaterConfig, schedule_send_later
 
@@ -42,7 +43,7 @@ class EnvironmentVariables(Enum):
     ATTACHMENT_PATH = "ATTACHMENT_PATH"
     ATTACHMENT_NAME = "ATTACHMENT_NAME"
     ENABLE_STREAK_SHEDULING = "ENABLE_STREAK_SCHEDULING"
-    STREAK_TOKEN = "STREAK_TOKEN"  # noqa: S105
+    STREAK_TOKEN = "STREAK_TOKEN"  # noqa: S105 this is not a secret
     TIMEZONE = "TIMEZONE"
     SCHEDULE_CSV_PATH = "SCHEDULE_CSV_PATH"
     STREAK_EMAIL_ADDRESS = "STREAK_EMAIL_ADDRESS"
@@ -246,7 +247,8 @@ def schedule_send(
     send_time = sh.get_scheduled_send_time(day_ranges, timezone)
     if send_time is True:
         # current time is within allowed range
-        # send time should be 10 minutes from now
+        # send time should be 10 minutes from now to allow sufficient time for user to
+        # edit the draft in case of any errors.
         send_time = datetime.datetime.now(tz=ZoneInfo(timezone)) + datetime.timedelta(
             minutes=10
         )
@@ -263,12 +265,37 @@ def schedule_send(
     return schedule_send_later(config)
 
 
-def save_for_followup(fm: FollowupManager, draft_or_sent: dict) -> None:
+def save_for_followup(draft: dict) -> None:
     """
     Save the email for follow-up tracking.
 
     draft_or_sent: The draft or sent email object.
     """
+    thread_id = draft.get("message", {}).get("threadId")
+    if thread_id:
+        fm = FollowupManager(
+            db_path=os.getenv("FOLLOWUP_DB_PATH", "followup_db.json"),
+            followup_wait_days=int(os.getenv("FOLLOWUP_WAIT_DAYS", "3")),
+            timezone=timezone,
+        )
+        fm.track_email(
+            args.recruiter_email,
+            args.recruiter_name,
+            args.recruiter_company,
+            thread_id,
+            subject,
+        )
+
+    # Set up automatic cron job for follow-ups if enabled
+    try:
+        if setup_cron_job():
+            logger.info("Automatic follow-up cron job set up successfully")
+        else:
+            logger.warning("Could not set up automatic follow-up cron job")
+    except (OSError, ValueError) as e:
+        logger.warning("Error setting up cron job: %s", e)
+    else:
+        logger.warning("Could not track email for follow-up: No thread ID")
 
 
 if __name__ == "__main__":
@@ -278,6 +305,7 @@ if __name__ == "__main__":
     message_body_path = args.message_body_path or os.getenv(
         EnvironmentVariables.MESSAGE_BODY_PATH.value
     )
+
     attachment_path_string = args.attachment_path or os.getenv(
         EnvironmentVariables.ATTACHMENT_PATH.value
     )
@@ -289,23 +317,18 @@ if __name__ == "__main__":
             "attachment_path and attachment_name must both appear if either is provided"
         )
         sys.exit(1)
+
     should_schedule = args.schedule or os.getenv(
         EnvironmentVariables.ENABLE_STREAK_SHEDULING.value
     )
+    if isinstance(should_schedule, str):
+        should_schedule = str_to_bool(should_schedule)
+
     enable_followup = args.enable_followup or os.getenv(
         EnvironmentVariables.ENABLE_FOLLOWUP.value
     )
     if isinstance(enable_followup, str):
-        if enable_followup.lower() == "true":
-            enable_followup = True
-        elif enable_followup.lower() == "false":
-            enable_followup = False
-        else:
-            logger.warning(
-                "Invalid value for ENABLE_FOLLOWUP. Must be 'true' or 'false'. \
-                Defaulting to false"
-            )
-            enable_followup = False
+        enable_followup = str_to_bool(enable_followup)
 
     # Log follow-up status
     logger.info("Auto follow-up is %s", "enabled" if enable_followup else "disabled")
@@ -361,28 +384,4 @@ if __name__ == "__main__":
         )
         schedule_send(timezone, csv_path, draft, streak_token, streak_email_address)
     if enable_followup:
-        thread_id = draft.get("message", {}).get("threadId")
-        if thread_id:
-            fm = FollowupManager(
-                db_path=os.getenv("FOLLOWUP_DB_PATH", "followup_db.json"),
-                followup_wait_days=int(os.getenv("FOLLOWUP_WAIT_DAYS", "3")),
-                timezone=timezone,
-            )
-            fm.track_email(
-                args.recruiter_email,
-                args.recruiter_name,
-                args.recruiter_company,
-                thread_id,
-                subject,
-            )
-
-            # Set up automatic cron job for follow-ups if enabled
-            try:
-                if setup_cron_job():
-                    logger.info("Automatic follow-up cron job set up successfully")
-                else:
-                    logger.warning("Could not set up automatic follow-up cron job")
-            except Exception as e:  # noqa: BLE001
-                logger.warning("Error setting up cron job: %s", e)
-        else:
-            logger.warning("Could not track email for follow-up: No thread ID")
+        save_for_followup(draft)

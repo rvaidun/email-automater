@@ -17,21 +17,15 @@ class FollowupManager:
     def __init__(
         self,
         db_path: str = "followup_db.json",
-        followup_wait_days: int = 3,
-        timezone: str = "UTC",
     ) -> None:
         """
         Initialize the FollowupManager.
 
         Args:
             db_path: Path to the database file
-            followup_wait_days: Number of days to wait between follow-ups
-            timezone: Timezone to use for datetime operations
 
         """
         self.db_path = Path(db_path)
-        self.followup_wait_days = followup_wait_days
-        self.timezone = ZoneInfo(timezone)
 
     def load_followup_db(self) -> dict[str, list]:
         """Load the follow-up database from disk."""
@@ -57,13 +51,16 @@ class FollowupManager:
             json.dump(db, f, indent=4)
         logger.debug("Database saved successfully")
 
-    def track_email(
+    def track_email(  # noqa: PLR0913
         self,
         recruiter_email: str,
         recruiter_name: str,
         recruiter_company: str,
         thread_id: str,
         subject: str,
+        followup_wait_days: int = 3,
+        max_followups: int = 2,
+        timezone: str = "UTC",
     ) -> None:
         """
         Add a sent email to the tracking database.
@@ -74,6 +71,9 @@ class FollowupManager:
             recruiter_company: Company of the recipient
             thread_id: Gmail thread ID
             subject: Email subject
+            followup_wait_days: Number of days to wait before the next follow-up
+            max_followups: Maximum number of follow-ups allowed
+            timezone: Timezone for scheduling follow-ups
 
         """
         db = self.load_followup_db()
@@ -103,8 +103,11 @@ class FollowupManager:
                 "followup_count": 0,
                 "next_followup": (
                     datetime.datetime.now(tz=self.timezone)
-                    + datetime.timedelta(days=self.followup_wait_days)
+                    + datetime.timedelta(days=followup_wait_days)
                 ).isoformat(),
+                "max_followups": max_followups,
+                "followup_wait_days": followup_wait_days,
+                "timezone": timezone,
             }
         )
 
@@ -133,7 +136,6 @@ class FollowupManager:
     def update_followup_status(
         self,
         recruiter_email: str,
-        increment_count: bool = True,  # noqa: FBT001, FBT002
     ) -> None:
         """
         Update the follow-up status for an email.
@@ -147,9 +149,7 @@ class FollowupManager:
 
         for email in db["emails"]:
             if email["recruiter_email"] == recruiter_email:
-                if increment_count:
-                    email["followup_count"] += 1
-
+                email["followup_count"] += 1
                 email["last_contact"] = datetime.datetime.now(
                     tz=self.timezone
                 ).isoformat()

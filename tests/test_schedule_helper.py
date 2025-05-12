@@ -37,7 +37,7 @@ def test_parse_time_ranges_csv():
     csv_reader = csv.DictReader(StringIO(csv_data))
     result = parse_time_ranges_csv(csv_reader)
 
-    assert len(result) == 7  # noqa: PLR2004
+    assert len(result) == 7  # noqa: PLR2004 7 days in a week
     assert result[0] == [
         (datetime.time(9, 0), datetime.time(12, 0)),
         (datetime.time(13, 0), datetime.time(15, 0)),

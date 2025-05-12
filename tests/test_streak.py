@@ -13,7 +13,7 @@ from utils.streak import StreakSendLaterConfig, schedule_send_later
 def mock_config():
     """Create a mock configuration for testing."""
     return StreakSendLaterConfig(
-        token="test_token",  # noqa: S106
+        token="test_token",  # noqa: S106 # This is a test token, not a real one
         to_address="test@example.com",
         subject="Test Subject",
         thread_id="test_thread",
@@ -89,7 +89,7 @@ def test_schedule_send_later_timezone_conversion():
     )  # EDT
 
     config = StreakSendLaterConfig(
-        token="test_token",  # noqa: S106
+        token="test_token",  # noqa: S106 # This is a test token, not a real one
         to_address="test@example.com",
         subject="Test Subject",
         thread_id="test_thread",

@@ -30,7 +30,7 @@ def manager(temp_db):
 def test_initialization(manager):
     """Test FollowupManager initialization."""
     assert manager.db_path.exists()
-    assert manager.followup_wait_days == 3  # noqa: PLR2004
+    assert manager.followup_wait_days == 3  # noqa: PLR2004 3 is default we use in manager
     assert manager.timezone == ZoneInfo("UTC")
 
 
