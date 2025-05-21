@@ -156,8 +156,8 @@ This project includes an automated follow-up system that can send follow-up emai
 
 ### How It Works
 
-1. When you send an initial email, it is tracked in the `followup_db.json` file
-2. The system automatically sets up a cron job to check for pending follow-ups daily
+1. When you send an initial email, it is tracked in the `followup.db` SQLite file
+2. You need to set up a cron job to run `run_followups.sh` daily to check for and send pending follow-ups
 3. Follow-up emails will be sent automatically after the specified wait period (default: 3 days)
 4. Each contact will receive a maximum of 2 follow-up emails
 
@@ -183,23 +183,52 @@ Create a `followup_template.html` file with your follow-up message. You can use 
 Your Name</p>
 ```
 
-### Cron Job Management
+### Setting Up the Cron Job
 
-The system automatically creates a cron job that runs daily at 10 AM to check for and send pending follow-ups.
+#### Unix/Linux/macOS Users
+1. Open your crontab for editing:
+```bash
+crontab -e
+```
 
-#### Verifying the Cron Job
-To verify that the cron job has been successfully added:
+2. Add the following line to run follow-ups daily at 10 AM:
+```bash
+0 10 * * * cd /path/to/your/project && ./run_followups.sh
+```
+Replace `/path/to/your/project` with the absolute path to your project directory.
 
+3. Make sure `run_followups.sh` is executable:
+```bash
+chmod +x run_followups.sh
+```
+
+#### Windows Users
+1. Open Task Scheduler
+2. Create a Basic Task:
+   - Name: "Email Follow-ups"
+   - Trigger: Daily at 10:00 AM
+   - Action: Start a program
+   - Program/script: `C:\path\to\python.exe`
+   - Add arguments: `send_followups.py`
+   - Start in: `C:\path\to\your\project`
+
+### Verifying the Cron Job
+
+#### Unix/Linux/macOS
+To verify your cron job is set up correctly:
 ```bash
 crontab -l
 ```
+You should see the line you added.
 
-You should see a line like:
-```
-0 10 * * * cd /path/to/your/project && ./run_followups.sh
-```
+#### Windows
+1. Open Task Scheduler
+2. Look for "Email Follow-ups" in the task list
+3. Right-click and select "Run" to test it immediately
 
-#### Manually Deleting the Cron Job
+### Manually Deleting the Cron Job
+
+#### Unix/Linux/macOS
 If you want to stop the automatic follow-ups:
 
 1. Edit your crontab:
@@ -209,12 +238,6 @@ crontab -e
 
 2. Find and delete the line containing `run_followups.sh`
 3. Save and exit the editor
-
-#### Windows Users
-For Windows, the automatic cron setup is not supported. Instead:
-1. Open Task Scheduler
-2. Create a Basic Task > Daily > Start a program
-3. Add the path to `run_followups.sh` or create a batch file equivalent
 
 ### Customizing Follow-up Behavior
 

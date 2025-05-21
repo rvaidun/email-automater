@@ -16,7 +16,6 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 
 import utils.schedule_helper as sh
-from utils.cron_setup import setup_cron_job
 from utils.customformatter import CustomFormatter
 from utils.email_args import (
     EnvironmentVariables,
@@ -193,15 +192,7 @@ def save_for_followup(draft: dict) -> None:
             thread_id,
             subject,
         )
-
-        # Set up automatic cron job for follow-ups if enabled
-        try:
-            if setup_cron_job():
-                logger.info("Automatic follow-up cron job set up successfully")
-            else:
-                logger.warning("Could not set up automatic follow-up cron job")
-        except (OSError, ValueError) as e:
-            logger.warning("Error setting up cron job: %s", e)
+        logger.info("Email tracked for follow-up")
     else:
         logger.warning("Could not track email for follow-up: No thread ID")
 
