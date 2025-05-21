@@ -1,8 +1,6 @@
 """Unit tests for the follow-up management functionality."""
 
 import datetime
-import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -22,7 +20,7 @@ def followup_manager(temp_db_path):
     return FollowupManager(db_path=str(temp_db_path))
 
 
-def test_init_creates_db(followup_manager, temp_db_path):
+def test_init_creates_db(temp_db_path):
     """Test that database is created on initialization."""
     assert temp_db_path.exists()
     assert temp_db_path.stat().st_size > 0
@@ -31,13 +29,15 @@ def test_init_creates_db(followup_manager, temp_db_path):
 def test_track_new_email(followup_manager):
     """Test tracking a new email."""
     now = datetime.datetime.now(datetime.UTC)
+    default_followup_wait_days = 3
+    default_max_followups = 2
     followup_manager.track_email(
         recruiter_email="test@example.com",
         recruiter_name="Test Recruiter",
         recruiter_company="Test Company",
         thread_id="test_thread",
-        followup_wait_days=3,
-        max_followups=2,
+        followup_wait_days=default_followup_wait_days,
+        max_followups=default_max_followups,
         timezone="UTC",
     )
 
@@ -49,8 +49,8 @@ def test_track_new_email(followup_manager):
     assert status["recruiter_company"] == "Test Company"
     assert status["thread_id"] == "test_thread"
     assert status["followup_count"] == 0
-    assert status["max_followups"] == 2
-    assert status["followup_wait_days"] == 3
+    assert status["max_followups"] == default_max_followups
+    assert status["followup_wait_days"] == default_followup_wait_days
     assert status["timezone"] == "UTC"
 
     # Verify timestamps
@@ -95,7 +95,7 @@ def test_get_pending_followups(followup_manager):
         recruiter_company="Test Company 1",
         thread_id="test_thread_1",
     )
-    with followup_manager._get_connection() as conn:
+    with followup_manager._get_connection() as conn:  # noqa: SLF001
         conn.execute(
             "UPDATE emails SET next_followup = ? WHERE recruiter_email = ?",
             (past, "test1@example.com"),
@@ -109,7 +109,7 @@ def test_get_pending_followups(followup_manager):
         recruiter_company="Test Company 2",
         thread_id="test_thread_2",
     )
-    with followup_manager._get_connection() as conn:
+    with followup_manager._get_connection() as conn:  # noqa: SLF001
         conn.execute(
             "UPDATE emails SET next_followup = ? WHERE recruiter_email = ?",
             (future, "test2@example.com"),
@@ -124,7 +124,7 @@ def test_get_pending_followups(followup_manager):
         thread_id="test_thread_3",
         max_followups=1,
     )
-    with followup_manager._get_connection() as conn:
+    with followup_manager._get_connection() as conn:  # noqa: SLF001
         conn.execute(
             """
             UPDATE emails
@@ -157,7 +157,6 @@ def test_update_followup_status(followup_manager):
     # Get initial status
     initial_status = followup_manager.get_email_status("test@example.com")
     initial_count = initial_status["followup_count"]
-    initial_next = datetime.datetime.fromisoformat(initial_status["next_followup"])
 
     # Update status
     followup_manager.update_followup_status("test@example.com")

@@ -2,7 +2,6 @@
 
 import datetime
 import logging
-import os
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -74,7 +73,6 @@ class FollowupManager:
             timezone: Timezone for scheduling follow-ups
 
         """
-        now = datetime.datetime.now(tz=datetime.UTC).isoformat()
         next_followup = (
             datetime.datetime.now(tz=datetime.UTC)
             + datetime.timedelta(days=followup_wait_days)
@@ -153,8 +151,11 @@ class FollowupManager:
         with self._get_connection() as conn:
             # Get the current email's settings
             cursor = conn.execute(
-                "SELECT followup_wait_days, timezone FROM emails WHERE recruiter_email = ?",
-                (recruiter_email,),
+                """
+            SELECT followup_wait_days, timezone FROM emails WHERE recruiter_email = ?
+                """(
+                    recruiter_email,
+                ),
             )
             row = cursor.fetchone()
             if not row:
@@ -163,7 +164,6 @@ class FollowupManager:
                 )
                 return
 
-            now = datetime.datetime.now(tz=datetime.UTC).isoformat()
             next_followup = (
                 datetime.datetime.now(tz=datetime.UTC)
                 + datetime.timedelta(days=row["followup_wait_days"])

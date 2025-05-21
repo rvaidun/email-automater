@@ -7,9 +7,6 @@ import pytest
 
 from utils.email_args import (
     EnvironmentVariables,
-    add_common_email_args,
-    add_followup_args,
-    add_initial_email_args,
     get_arg_or_env,
     get_bool_arg_or_env,
 )
@@ -22,7 +19,7 @@ def mock_env_vars():
         EnvironmentVariables.EMAIL_SUBJECT.value: "env_subject",
         EnvironmentVariables.MESSAGE_BODY_PATH.value: "env_body.txt",
         EnvironmentVariables.TIMEZONE.value: "env_tz",
-        EnvironmentVariables.STREAK_TOKEN.value: "env_token",  # noqa: S105
+        EnvironmentVariables.STREAK_TOKEN.value: "env_token",
         EnvironmentVariables.STREAK_EMAIL_ADDRESS.value: "env_email@example.com",
         EnvironmentVariables.SCHEDULE_CSV_PATH.value: "env_schedule.csv",
         EnvironmentVariables.ENABLE_STREAK_SCHEDULING.value: "true",
@@ -54,7 +51,7 @@ def test_get_arg_or_env_with_env():
 
 
 def test_get_arg_or_env_with_default():
-    """Test getting default value when neither argument nor environment variable is set."""
+    """Test default value when neither argument nor environment variable is set."""
     with patch.dict(os.environ, {}, clear=True):
         value = get_arg_or_env(
             None, EnvironmentVariables.EMAIL_SUBJECT, default="default_value"
@@ -63,11 +60,11 @@ def test_get_arg_or_env_with_default():
 
 
 def test_get_arg_or_env_required_missing():
-    """Test getting value when required but neither argument nor environment variable is set."""
-    with patch.dict(os.environ, {}, clear=True):
+    """Test value when required but neither argument nor environment variable is set."""
+    with patch.dict(os.environ, {}, clear=True):  # noqa: SIM117
         with pytest.raises(
             ValueError,
-            match=f"Missing required argument or environment variable: {EnvironmentVariables.EMAIL_SUBJECT.value}",
+            match=f"Missing required argument or environment variable: {EnvironmentVariables.EMAIL_SUBJECT.value}",  # noqa: E501
         ):
             get_arg_or_env(None, EnvironmentVariables.EMAIL_SUBJECT, required=True)
 
@@ -132,7 +129,7 @@ def test_get_bool_arg_or_env_invalid():
 
 
 def test_get_bool_arg_or_env_missing():
-    """Test getting boolean value when neither argument nor environment variable is set."""
+    """Test get boolean value when neither argument nor environment variable is set."""
     with patch("argparse.Namespace") as mock_args:
         mock_args.test_arg = None
         with patch.dict(os.environ, {}, clear=True):

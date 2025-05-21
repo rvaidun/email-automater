@@ -1,7 +1,6 @@
 """Unit tests for the automate_emails.py script."""
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,8 +9,6 @@ from automate_emails import (
     create_email_message,
     parse_args,
     process_string,
-    schedule_send,
-    save_for_followup,
 )
 
 
@@ -28,7 +25,7 @@ def mock_args():
     args.followup_db_path = "test_followup.db"
     args.followup_wait_days = 7
     args.email_address = "sender@example.com"
-    args.token_path = "test_token.json"
+    args.token_path = "test_token.json"  # noqa: S105
     args.streak_token = "test_token"  # noqa: S105
     args.streak_email_address = "sender@example.com"
     args.enable_followup = True
@@ -41,7 +38,7 @@ def mock_args():
 def mock_token_file(tmp_path):
     """Create a mock token file."""
     token_path = tmp_path / "test_token.json"
-    token_data = {"token": "test_token"}  # noqa: S105
+    token_data = {"token": "test_token"}
     with token_path.open("w") as f:
         json.dump(token_data, f)
     return token_path
@@ -104,9 +101,9 @@ def test_parse_args():
         assert args.message_body_path == "test_message.txt"
         assert args.timezone == "UTC"
         assert args.followup_db_path == "test_followup.db"
-        assert args.followup_wait_days == 7
+        assert args.followup_wait_days == 7  # noqa: PLR2004
         assert args.email_address == "sender@example.com"
-        assert args.token_path == "test_token.json"
+        assert args.token_path == "test_token.json"  # no  # noqa: S105
         assert args.followup is True
         assert args.attachment_path == "test_attachment.txt"
         assert args.attachment_name == "Test Attachment"
