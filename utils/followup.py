@@ -43,7 +43,7 @@ class FollowupManager:
                     recruiter_company TEXT NOT NULL,
                     thread_id TEXT NOT NULL,
                     followup_count INTEGER NOT NULL DEFAULT 0,
-                    next_followup TEXT, # ISO8601 strings ("YYYY-MM-DD HH:MM:SS.SSS")
+                    next_followup TEXT,
                     max_followups INTEGER NOT NULL DEFAULT 2,
                     followup_wait_days INTEGER NOT NULL DEFAULT 3,
                     timezone TEXT NOT NULL DEFAULT 'UTC'
@@ -57,7 +57,6 @@ class FollowupManager:
         recruiter_name: str,
         recruiter_company: str,
         thread_id: str,
-        subject: str,
         followup_wait_days: int = 3,
         max_followups: int = 2,
         timezone: str = "UTC",
@@ -70,7 +69,6 @@ class FollowupManager:
             recruiter_name: Name of the recipient
             recruiter_company: Company of the recipient
             thread_id: Gmail thread ID
-            subject: Email subject
             followup_wait_days: Number of days to wait before the next follow-up
             max_followups: Maximum number of follow-ups allowed
             timezone: Timezone for scheduling follow-ups
@@ -100,19 +98,16 @@ class FollowupManager:
                     """
                     INSERT INTO emails (
                         recruiter_email, recruiter_name, recruiter_company,
-                        thread_id, subject, initial_contact, last_contact,
+                        thread_id,
                         followup_count, next_followup, max_followups,
                         followup_wait_days, timezone
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         recruiter_email,
                         recruiter_name,
                         recruiter_company,
                         thread_id,
-                        subject,
-                        now,
-                        now,
                         0,
                         next_followup,
                         max_followups,
@@ -158,10 +153,7 @@ class FollowupManager:
         with self._get_connection() as conn:
             # Get the current email's settings
             cursor = conn.execute(
-                """
-                "SELECT followup_wait_days, timezone FROM emails WHERE recruiter_email
-                = ?"
-                """,
+                "SELECT followup_wait_days, timezone FROM emails WHERE recruiter_email = ?",
                 (recruiter_email,),
             )
             row = cursor.fetchone()
@@ -181,11 +173,10 @@ class FollowupManager:
                 """
                 UPDATE emails
                 SET followup_count = followup_count + 1,
-                    last_contact = ?,
                     next_followup = ?
                 WHERE recruiter_email = ?
                 """,
-                (now, next_followup, recruiter_email),
+                (next_followup, recruiter_email),
             )
             if cursor.rowcount == 0:
                 logger.warning(
@@ -211,15 +202,3 @@ class FollowupManager:
             )
             row = cursor.fetchone()
             return dict(row) if row else None
-
-
-# Create a default instance for backward compatibility
-default_manager = FollowupManager(
-    db_path=os.getenv("FOLLOWUP_DB_PATH", "followup.db"),
-)
-
-# Expose the default instance's methods as module-level functions
-track_email = default_manager.track_email
-get_pending_followups = default_manager.get_pending_followups
-update_followup_status = default_manager.update_followup_status
-get_email_status = default_manager.get_email_status

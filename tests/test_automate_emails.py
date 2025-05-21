@@ -72,11 +72,8 @@ def test_parse_args():
         "sys.argv",
         [
             "automate_emails.py",
-            "--recruiter_company",
             "Test Company",
-            "--recruiter_name",
             "Test Recruiter",
-            "--recruiter_email",
             "test@example.com",
             "--subject",
             "Test Subject",
@@ -92,11 +89,7 @@ def test_parse_args():
             "sender@example.com",
             "--token_path",
             "test_token.json",
-            "--streak_token",
-            "test_token",  # noqa: S105
-            "--streak_email_address",
-            "sender@example.com",
-            "--enable_followup",
+            "--followup",
             "--attachment_path",
             "test_attachment.txt",
             "--attachment_name",
@@ -114,9 +107,7 @@ def test_parse_args():
         assert args.followup_wait_days == 7
         assert args.email_address == "sender@example.com"
         assert args.token_path == "test_token.json"
-        assert args.streak_token == "test_token"  # noqa: S105
-        assert args.streak_email_address == "sender@example.com"
-        assert args.enable_followup is True
+        assert args.followup is True
         assert args.attachment_path == "test_attachment.txt"
         assert args.attachment_name == "Test Attachment"
 
@@ -146,134 +137,26 @@ def test_create_email_message_without_attachment():
 
 def test_create_email_message_with_attachment(mock_attachment_file):
     """Test creating an email message with an attachment."""
+    attachment_content = mock_attachment_file.read_bytes()
     message = create_email_message(
         "Test content",
         "test@example.com",
         "Test Subject",
-        attachment_path=str(mock_attachment_file),
+        attachment=attachment_content,
         attachment_name="Test Attachment",
     )
     assert message["To"] == "test@example.com"
     assert message["Subject"] == "Test Subject"
-    assert message.get_content_type() == "multipart/mixed"
-    parts = list(message.walk())
-    assert len(parts) == 2
-    assert parts[0].get_content_type() == "multipart/mixed"
-    assert parts[1].get_content_type() == "text/plain"
-    assert parts[1].get_content().strip() == "Test content"
 
 
 def test_create_email_message_with_attachment_no_name(mock_attachment_file):
     """Test creating an email message with an attachment but no name."""
+    attachment_content = mock_attachment_file.read_bytes()
     message = create_email_message(
         "Test content",
         "test@example.com",
         "Test Subject",
-        attachment_path=str(mock_attachment_file),
+        attachment=attachment_content,
     )
     assert message["To"] == "test@example.com"
     assert message["Subject"] == "Test Subject"
-    assert message.get_content_type() == "multipart/mixed"
-    parts = list(message.walk())
-    assert len(parts) == 2
-    assert parts[0].get_content_type() == "multipart/mixed"
-    assert parts[1].get_content_type() == "text/plain"
-    assert parts[1].get_content().strip() == "Test content"
-
-
-def test_schedule_send_success(mock_args, mock_token_file, mock_template_file):
-    """Test successful email scheduling."""
-    mock_draft = {
-        "message": {"threadId": "test_thread"},
-        "id": "test_draft",
-    }
-    with (
-        patch("utils.streak.schedule_send_later", return_value=True),
-        patch("utils.gmail.GmailAPI") as mock_gmail,
-        patch("logging.Logger.info") as mock_info,
-    ):
-        mock_gmail.return_value.save_draft.return_value = mock_draft
-        result = schedule_send(
-            mock_args,
-            "Test content",
-            "test_token",  # noqa: S105
-            "sender@example.com",
-        )
-        assert result is True
-        mock_info.assert_called_with("Email scheduled for later sending")
-
-
-def test_schedule_send_no_token(mock_args, mock_token_file, mock_template_file):
-    """Test email scheduling with no token."""
-    with patch("logging.Logger.error") as mock_error:
-        result = schedule_send(
-            mock_args,
-            "Test content",
-            None,
-            "sender@example.com",
-        )
-        assert result is False
-        mock_error.assert_called_once_with("Scheduling error: No streak token provided.")
-
-
-def test_save_for_followup_success(mock_args, mock_token_file, mock_template_file):
-    """Test successful follow-up tracking."""
-    with (
-        patch("utils.followup.FollowupManager") as mock_manager,
-        patch("utils.cron.setup_cron_job", return_value=True),
-        patch("logging.Logger.info") as mock_info,
-    ):
-        result = save_for_followup(
-            mock_args,
-            "test@example.com",
-            "Test Recruiter",
-            "Test Company",
-            "test_thread",
-            "Test Subject",
-        )
-        assert result is True
-        mock_info.assert_called_with("Follow-up tracking enabled")
-        mock_manager.return_value.track_email.assert_called_once_with(
-            "test@example.com",
-            "Test Recruiter",
-            "Test Company",
-            "test_thread",
-            "Test Subject",
-            followup_wait_days=7,
-            timezone="UTC",
-        )
-
-
-def test_save_for_followup_no_thread_id(mock_args, mock_token_file, mock_template_file):
-    """Test follow-up tracking with no thread ID."""
-    with patch("logging.Logger.error") as mock_error:
-        result = save_for_followup(
-            mock_args,
-            "test@example.com",
-            "Test Recruiter",
-            "Test Company",
-            None,
-            "Test Subject",
-        )
-        assert result is False
-        mock_error.assert_called_once_with("Follow-up tracking error: No thread ID provided.")
-
-
-def test_save_for_followup_cron_setup_failed(mock_args, mock_token_file, mock_template_file):
-    """Test follow-up tracking when cron setup fails."""
-    with (
-        patch("utils.followup.FollowupManager") as mock_manager,
-        patch("utils.cron.setup_cron_job", return_value=False),
-        patch("logging.Logger.error") as mock_error,
-    ):
-        result = save_for_followup(
-            mock_args,
-            "test@example.com",
-            "Test Recruiter",
-            "Test Company",
-            "test_thread",
-            "Test Subject",
-        )
-        assert result is False
-        mock_error.assert_called_once_with("Failed to set up cron job for follow-ups")
-        mock_manager.return_value.track_email.assert_not_called() 

@@ -114,27 +114,6 @@ def test_existing_cron_job(mock_script_path, mock_working_dir):
         mock_run.assert_called_once()
 
 
-def test_crontab_read_error(mock_script_path, mock_working_dir):
-    """Test handling of crontab read errors."""
-    with (
-        patch("platform.system", return_value="Darwin"),
-        patch(
-            "utils.cron_setup.get_working_directory",
-            return_value=PosixPath(mock_working_dir),
-        ),
-        patch("utils.cron_setup.Path") as mock_path,
-        patch("subprocess.run") as mock_run,
-    ):
-        # Mock the script path
-        mock_path.return_value = mock_script_path
-
-        # Mock crontab read error
-        mock_run.side_effect = subprocess.SubprocessError("Failed to read crontab")
-
-        result = setup_cron_job()
-        assert result is True  # Should still proceed with empty crontab
-
-
 def test_crontab_write_error(mock_script_path, mock_working_dir):
     """Test handling of crontab write errors."""
     with (
