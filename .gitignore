@@ -9,6 +9,7 @@ credentials.json
 .DS_Store
 
 followup_db.json
+followup.db
 followup.log
 __pycache__/
 .coverage

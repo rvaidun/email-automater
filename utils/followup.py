@@ -1,9 +1,9 @@
 """Utility functions for managing email follow-ups."""
 
 import datetime
-import json
 import logging
 import os
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -15,40 +15,41 @@ class FollowupManager:
 
     def __init__(
         self,
-        db_path: str = "followup_db.json",
+        db_path: str = "followup.db",
     ) -> None:
         """
         Initialize the FollowupManager.
 
         Args:
-            db_path: Path to the database file
+            db_path: Path to the SQLite database file
 
         """
         self.db_path = Path(db_path)
+        self._init_db()
 
-    def load_followup_db(self) -> dict[str, list]:
-        """Load the follow-up database from disk."""
-        logger.debug("Loading follow-up database from %s", self.db_path)
+    def _get_connection(self) -> sqlite3.Connection:
+        """Get a database connection."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row  # This enables column access by name
+        return conn
 
-        if not self.db_path.exists():
-            logger.debug("Database file does not exist, creating empty database")
-            return {"emails": []}
-
-        with self.db_path.open("r") as f:
-            data = json.load(f)
-            logger.debug(
-                "Loaded database with %d email entries", len(data.get("emails", []))
-            )
-            return data
-
-    def save_followup_db(self, db: dict) -> None:
-        """Save the follow-up database to disk."""
-        logger.debug(
-            "Saving follow-up database with %d email entries", len(db.get("emails", []))
-        )
-        with self.db_path.open("w") as f:
-            json.dump(db, f, indent=4)
-        logger.debug("Database saved successfully")
+    def _init_db(self) -> None:
+        """Initialize the database schema."""
+        with self._get_connection() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS emails (
+                    recruiter_email TEXT PRIMARY KEY,
+                    recruiter_name TEXT NOT NULL,
+                    recruiter_company TEXT NOT NULL,
+                    thread_id TEXT NOT NULL,
+                    followup_count INTEGER NOT NULL DEFAULT 0,
+                    next_followup TEXT, # ISO8601 strings ("YYYY-MM-DD HH:MM:SS.SSS")
+                    max_followups INTEGER NOT NULL DEFAULT 2,
+                    followup_wait_days INTEGER NOT NULL DEFAULT 3,
+                    timezone TEXT NOT NULL DEFAULT 'UTC'
+                )
+            """)
+            conn.commit()
 
     def track_email(  # noqa: PLR0913
         self,
@@ -75,42 +76,51 @@ class FollowupManager:
             timezone: Timezone for scheduling follow-ups
 
         """
-        db = self.load_followup_db()
+        now = datetime.datetime.now(tz=datetime.UTC).isoformat()
+        next_followup = (
+            datetime.datetime.now(tz=datetime.UTC)
+            + datetime.timedelta(days=followup_wait_days)
+        ).isoformat()
 
-        # Check if this email already exists
-        for email in db["emails"]:
-            if email["recruiter_email"] == recruiter_email:
-                # Update the existing entry
-                email["thread_id"] = thread_id
-                email["last_contact"] = datetime.datetime.now(
-                    tz=self.timezone
-                ).isoformat()
-                email["followup_count"] = 0
-                self.save_followup_db(db)
-                return
-
-        # Add new email entry
-        db["emails"].append(
-            {
-                "recruiter_email": recruiter_email,
-                "recruiter_name": recruiter_name,
-                "recruiter_company": recruiter_company,
-                "thread_id": thread_id,
-                "subject": subject,
-                "initial_contact": datetime.datetime.now(tz=self.timezone).isoformat(),
-                "last_contact": datetime.datetime.now(tz=self.timezone).isoformat(),
-                "followup_count": 0,
-                "next_followup": (
-                    datetime.datetime.now(tz=self.timezone)
-                    + datetime.timedelta(days=followup_wait_days)
-                ).isoformat(),
-                "max_followups": max_followups,
-                "followup_wait_days": followup_wait_days,
-                "timezone": timezone,
-            }
-        )
-
-        self.save_followup_db(db)
+        with self._get_connection() as conn:
+            # Check if email exists
+            cursor = conn.execute(
+                "SELECT recruiter_email FROM emails WHERE recruiter_email = ?",
+                (recruiter_email,),
+            )
+            if cursor.fetchone():
+                # Update existing entry
+                logger.warning(
+                    "Email to %s already exists in tracking database,skipping",
+                    recruiter_email,
+                )
+            else:
+                # Insert new entry
+                conn.execute(
+                    """
+                    INSERT INTO emails (
+                        recruiter_email, recruiter_name, recruiter_company,
+                        thread_id, subject, initial_contact, last_contact,
+                        followup_count, next_followup, max_followups,
+                        followup_wait_days, timezone
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        recruiter_email,
+                        recruiter_name,
+                        recruiter_company,
+                        thread_id,
+                        subject,
+                        now,
+                        now,
+                        0,
+                        next_followup,
+                        max_followups,
+                        followup_wait_days,
+                        timezone,
+                    ),
+                )
+            conn.commit()
         logger.info("Tracked email to %s for follow-up", recruiter_email)
 
     def get_pending_followups(self) -> list[dict[str, Any]]:
@@ -121,16 +131,18 @@ class FollowupManager:
             List of email entries that need follow-up
 
         """
-        db = self.load_followup_db()
-        now = datetime.datetime.now(tz=self.timezone).isoformat()
+        now = datetime.datetime.now(tz=datetime.UTC).isoformat()
 
-        return [
-            email
-            for email in db["emails"]
-            if email.get("next_followup")
-            and email["next_followup"] <= now
-            and email["followup_count"] < 2  # Limit to 2 follow-ups  # noqa: PLR2004
-        ]
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT * FROM emails
+                WHERE next_followup <= ?
+                AND followup_count < max_followups
+                """,
+                (now,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
 
     def update_followup_status(
         self,
@@ -141,38 +153,73 @@ class FollowupManager:
 
         Args:
             recruiter_email: Email address to update
-            increment_count: Whether to increment the follow-up count
 
         """
-        db = self.load_followup_db()
-
-        for email in db["emails"]:
-            if email["recruiter_email"] == recruiter_email:
-                email["followup_count"] += 1
-                email["last_contact"] = datetime.datetime.now(
-                    tz=self.timezone
-                ).isoformat()
-                email["next_followup"] = (
-                    datetime.datetime.now(tz=self.timezone)
-                    + datetime.timedelta(days=self.followup_wait_days)
-                ).isoformat()
-
-                self.save_followup_db(db)
+        with self._get_connection() as conn:
+            # Get the current email's settings
+            cursor = conn.execute(
+                """
+                "SELECT followup_wait_days, timezone FROM emails WHERE recruiter_email
+                = ?"
+                """,
+                (recruiter_email,),
+            )
+            row = cursor.fetchone()
+            if not row:
+                logger.warning(
+                    "Email to %s not found in tracking database", recruiter_email
+                )
                 return
 
-        logger.warning("Email to %s not found in tracking database", recruiter_email)
+            now = datetime.datetime.now(tz=datetime.UTC).isoformat()
+            next_followup = (
+                datetime.datetime.now(tz=datetime.UTC)
+                + datetime.timedelta(days=row["followup_wait_days"])
+            ).isoformat()
+
+            cursor = conn.execute(
+                """
+                UPDATE emails
+                SET followup_count = followup_count + 1,
+                    last_contact = ?,
+                    next_followup = ?
+                WHERE recruiter_email = ?
+                """,
+                (now, next_followup, recruiter_email),
+            )
+            if cursor.rowcount == 0:
+                logger.warning(
+                    "Email to %s not found in tracking database", recruiter_email
+                )
+            conn.commit()
+
+    def get_email_status(self, recruiter_email: str) -> dict[str, Any] | None:
+        """
+        Get the current status of an email.
+
+        Args:
+            recruiter_email: Email address to look up
+
+        Returns:
+            Dictionary containing email status or None if not found
+
+        """
+        with self._get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT * FROM emails WHERE recruiter_email = ?",
+                (recruiter_email,),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
 
 
 # Create a default instance for backward compatibility
 default_manager = FollowupManager(
-    db_path=os.getenv("FOLLOWUP_DB_PATH", "followup_db.json"),
-    followup_wait_days=int(os.getenv("FOLLOWUP_WAIT_DAYS", "3")),
-    timezone=os.getenv("TIMEZONE", "UTC"),
+    db_path=os.getenv("FOLLOWUP_DB_PATH", "followup.db"),
 )
 
 # Expose the default instance's methods as module-level functions
-load_followup_db = default_manager.load_followup_db
-save_followup_db = default_manager.save_followup_db
 track_email = default_manager.track_email
 get_pending_followups = default_manager.get_pending_followups
 update_followup_status = default_manager.update_followup_status
+get_email_status = default_manager.get_email_status
