@@ -20,7 +20,7 @@ def followup_manager(temp_db_path):
     return FollowupManager(db_path=str(temp_db_path))
 
 
-def test_init_creates_db(temp_db_path):
+def test_init_creates_db(temp_db_path, followup_manager):  # noqa: ARG001 for _init_
     """Test that database is created on initialization."""
     assert temp_db_path.exists()
     assert temp_db_path.stat().st_size > 0

@@ -153,9 +153,8 @@ class FollowupManager:
             cursor = conn.execute(
                 """
             SELECT followup_wait_days, timezone FROM emails WHERE recruiter_email = ?
-                """(
-                    recruiter_email,
-                ),
+                """,
+                (recruiter_email,),
             )
             row = cursor.fetchone()
             if not row:
