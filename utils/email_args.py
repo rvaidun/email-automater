@@ -73,7 +73,19 @@ def get_bool_arg_or_env(
     arg_value: bool | None,
     env_var: EnvironmentVariables,
 ) -> bool:
-    """Get boolean value from argument or environment variable prioritizing argument."""
+    """
+    Get boolean value from argument or environment variable prioritizing argument.
+
+    Args:
+        arg_value: The value from command line argument (can be None)
+        env_var: The environment variable to check
+
+    Returns:
+        True if arg_value is True or env_var is set to a truthy value
+        False if arg_value is False or env_var is set to a falsy value
+        The value from env_var if arg_value is None and env_var is set
+
+    """
     if arg_value is not None:
         return arg_value
     value = os.getenv(env_var.value)
@@ -117,7 +129,9 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
             {EnvironmentVariables.ENABLE_STREAK_SCHEDULING.value}. \
             If set, the streak token must be provided via env variable \
             {EnvironmentVariables.STREAK_TOKEN.value}",
-        action="store_true",
+        action="store_const",
+        const=True,
+        default=None,
     )
     parser.add_argument(
         "-scsv",
@@ -188,7 +202,9 @@ def add_initial_email_args(parser: argparse.ArgumentParser) -> None:
         "--followup",
         help=f"Whether to enable automatic follow-up for this email. env: \
             {EnvironmentVariables.ENABLE_FOLLOWUP.value}",
-        action="store_true",
+        action="store_const",
+        const=True,
+        default=None,
     )
     parser.add_argument(
         "-fw",

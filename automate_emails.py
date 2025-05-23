@@ -158,7 +158,7 @@ def schedule_send(
     return schedule_send_later(config)
 
 
-def save_for_followup(draft: dict) -> None:
+def save_for_followup(draft: dict, db_path: str) -> None:
     """
     Save the email for follow-up tracking.
 
@@ -167,30 +167,13 @@ def save_for_followup(draft: dict) -> None:
     thread_id = draft.get("message", {}).get("threadId")
     if thread_id:
         fm = FollowupManager(
-            db_path=get_arg_or_env(
-                None,
-                EnvironmentVariables.FOLLOWUP_DB_PATH,
-                default="followup_db.json",
-            ),
-            followup_wait_days=int(
-                get_arg_or_env(
-                    None,
-                    EnvironmentVariables.FOLLOWUP_WAIT_DAYS,
-                    default="3",
-                )
-            ),
-            timezone=get_arg_or_env(
-                None,
-                EnvironmentVariables.TIMEZONE,
-                default="UTC",
-            ),
+            db_path=db_path,
         )
         fm.track_email(
             args.recruiter_email,
             args.recruiter_name,
             args.recruiter_company,
             thread_id,
-            subject,
         )
         logger.info("Email tracked for follow-up")
     else:
@@ -237,7 +220,6 @@ if __name__ == "__main__":
     )
 
     # Log follow-up status
-    logger.info("Auto follow-up is %s", "enabled" if enable_followup else "disabled")
 
     token_path = Path(args.token_path)
     attachment = (
@@ -302,4 +284,8 @@ if __name__ == "__main__":
         )
         schedule_send(timezone, csv_path, draft, streak_token, streak_email_address)
     if enable_followup:
-        save_for_followup(draft)
+        followup_db_path = get_arg_or_env(
+            args.followup_db_path, EnvironmentVariables.FOLLOWUP_DB_PATH, required=True
+        )
+        logger.info("Adding draft to followup DB")
+        save_for_followup(draft, followup_db_path)
