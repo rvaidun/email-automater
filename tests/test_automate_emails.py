@@ -75,7 +75,6 @@ def test_parse_args():
             "test_message.txt",
             "--timezone",
             "UTC",
-            "7",
             "--email_address",
             "sender@example.com",
             "--token_path",

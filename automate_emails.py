@@ -6,7 +6,7 @@ import csv
 import datetime
 import json
 import logging
-import os.path
+import os
 import sys
 from email.message import EmailMessage
 from pathlib import Path
