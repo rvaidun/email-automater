@@ -22,13 +22,10 @@ def mock_args():
     args.subject = "Test Subject"
     args.message_body_path = "test_message.txt"
     args.timezone = "UTC"
-    args.followup_db_path = "test_followup.db"
-    args.followup_wait_days = 7
     args.email_address = "sender@example.com"
     args.token_path = "test_token.json"  # noqa: S105
     args.streak_token = "test_token"  # noqa: S105
     args.streak_email_address = "sender@example.com"
-    args.enable_followup = True
     args.attachment_path = None
     args.attachment_name = None
     return args
@@ -78,15 +75,11 @@ def test_parse_args():
             "test_message.txt",
             "--timezone",
             "UTC",
-            "--followup_db_path",
-            "test_followup.db",
-            "--followup_wait_days",
             "7",
             "--email_address",
             "sender@example.com",
             "--token_path",
             "test_token.json",
-            "--followup",
             "--attachment_path",
             "test_attachment.txt",
             "--attachment_name",
@@ -100,11 +93,8 @@ def test_parse_args():
         assert args.subject == "Test Subject"
         assert args.message_body_path == "test_message.txt"
         assert args.timezone == "UTC"
-        assert args.followup_db_path == "test_followup.db"
-        assert args.followup_wait_days == 7  # noqa: PLR2004
         assert args.email_address == "sender@example.com"
         assert args.token_path == "test_token.json"  # no  # noqa: S105
-        assert args.followup is True
         assert args.attachment_path == "test_attachment.txt"
         assert args.attachment_name == "Test Attachment"
 

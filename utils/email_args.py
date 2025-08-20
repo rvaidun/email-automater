@@ -25,13 +25,6 @@ class EnvironmentVariables(Enum):
     TOKEN_PATH = "TOKEN_PATH"  # noqa: S105
     CREDS_PATH = "CREDS_PATH"
 
-    # Follow-up specific variables
-    FOLLOWUP_BODY_PATH = "FOLLOWUP_BODY_PATH"
-    FOLLOWUP_SUBJECT = "FOLLOWUP_SUBJECT"
-    FOLLOWUP_DB_PATH = "FOLLOWUP_DB_PATH"
-    FOLLOWUP_WAIT_DAYS = "FOLLOWUP_WAIT_DAYS"
-    ENABLE_FOLLOWUP = "ENABLE_FOLLOWUP"
-
     # Initial email specific variables
     ATTACHMENT_PATH = "ATTACHMENT_PATH"
     ATTACHMENT_NAME = "ATTACHMENT_NAME"
@@ -172,14 +165,6 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
             {EnvironmentVariables.CREDS_PATH.value}",
         nargs="?",
     )
-    parser.add_argument(
-        "-fd",
-        "--followup_db_path",
-        type=str,
-        help=f"The path to the follow-up database file env: \
-            {EnvironmentVariables.FOLLOWUP_DB_PATH.value}",
-        nargs="?",
-    )
 
 
 def add_initial_email_args(parser: argparse.ArgumentParser) -> None:
@@ -207,41 +192,5 @@ def add_initial_email_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         help=f"The name of the attachment file env: \
             {EnvironmentVariables.ATTACHMENT_NAME.value}",
-        nargs="?",
-    )
-    parser.add_argument(
-        "-f",
-        "--followup",
-        help=f"Whether to enable automatic follow-up for this email. env: \
-            {EnvironmentVariables.ENABLE_FOLLOWUP.value}",
-        action="store_const",
-        const=True,
-    )
-    parser.add_argument(
-        "-fw",
-        "--followup_wait_days",
-        type=int,
-        help=f"Number of days to wait before sending follow-up env: \
-            {EnvironmentVariables.FOLLOWUP_WAIT_DAYS.value}",
-        nargs="?",
-    )
-
-
-def add_followup_args(parser: argparse.ArgumentParser) -> None:
-    """Add arguments specific to follow-up email sending."""
-    parser.add_argument(
-        "-fb",
-        "--followup_body_path",
-        type=str,
-        help=f"The path to the follow-up message body template. env: \
-            {EnvironmentVariables.FOLLOWUP_BODY_PATH.value}",
-        nargs="?",
-    )
-    parser.add_argument(
-        "-fs",
-        "--followup_subject",
-        type=str,
-        help=f"The subject of the follow-up email message as a string template env: \
-            {EnvironmentVariables.FOLLOWUP_SUBJECT.value}",
         nargs="?",
     )

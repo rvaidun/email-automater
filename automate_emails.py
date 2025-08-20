@@ -24,7 +24,6 @@ from utils.email_args import (
     get_arg_or_env,
     get_bool_arg_or_env,
 )
-from utils.followup import FollowupManager
 from utils.gmail import GmailAPI
 from utils.streak import StreakSendLaterConfig, schedule_send_later
 
@@ -158,28 +157,6 @@ def schedule_send(
     return schedule_send_later(config)
 
 
-def save_for_followup(draft: dict, db_path: str) -> None:
-    """
-    Save the email for follow-up tracking.
-
-    draft_or_sent: The draft or sent email object.
-    """
-    thread_id = draft.get("message", {}).get("threadId")
-    if thread_id:
-        fm = FollowupManager(
-            db_path=db_path,
-        )
-        fm.track_email(
-            args.recruiter_email,
-            args.recruiter_name,
-            args.recruiter_company,
-            thread_id,
-        )
-        logger.info("Email tracked for follow-up")
-    else:
-        logger.warning("Could not track email for follow-up: No thread ID")
-
-
 if __name__ == "__main__":
     args = parse_args()
     gmail_api = GmailAPI()
@@ -213,10 +190,6 @@ if __name__ == "__main__":
     should_schedule = get_bool_arg_or_env(
         args.schedule,
         EnvironmentVariables.ENABLE_STREAK_SCHEDULING,
-    )
-    enable_followup = get_bool_arg_or_env(
-        args.followup,
-        EnvironmentVariables.ENABLE_FOLLOWUP,
     )
     token_path = get_arg_or_env(
         args.token_path,
@@ -300,9 +273,3 @@ if __name__ == "__main__":
             or gmail_api.get_current_user()["emailAddress"]
         )
         schedule_send(timezone, csv_path, draft, streak_token, streak_email_address)
-    if enable_followup:
-        followup_db_path = get_arg_or_env(
-            args.followup_db_path, EnvironmentVariables.FOLLOWUP_DB_PATH, required=True
-        )
-        logger.info("Adding draft to followup DB")
-        save_for_followup(draft, followup_db_path)
