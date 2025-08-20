@@ -7,67 +7,14 @@ See a demo [here](https://youtu.be/Ef5i8DboJP4).
 2. Create a virtual environment `python3 -m venv venv`
 3. Activate the virtual environment `source venv/bin/activate`
 4. Install the requirements `pip install -r requirements.txt`
+
 Steps 2-4 can be skipped if using `uv` package manager.
 Simply run `uv sync` and all packages will be installed in virtual environment.
 
 
 5. Follow the instructions [here](https://developers.google.com/gmail/api/quickstart/python) to enable the Gmail API and download the `credentials.json` file. Save the file in the root directory of the repository.
 
-Your directory structure should look like this:
-```
-.
-├── README.md
-├── automate_emails.py
-├── pyproject.toml
-├── requirements.txt
-├── scheduler.csv
-├── tests
-│   ├── __init__.py
-│   ├── test_automate_emails.py
-│   ├── test_email_args.py
-│   ├── test_gmail.py
-│   ├── test_schedule_helper.py
-│   └── test_streak.py
-├── utils
-│   ├── __init__.py
-│   ├── customformatter.py
-│   ├── email_args.py
-│   ├── funcs.py
-│   ├── gmail.py
-│   ├── schedule_helper.py
-│   └── streak.py
-└── uv.lock
-```
-
 The `token.json` file will not exist yet if you haven't run the script yet. The `token.json` file stores the login credentials required to access your Google account so you don't have to relogin each time you run the script. If the file does not exist you will be prompted to login to Google using standard Oauth2 flow.
-
-## Environment Variables
-The following environment variables should be set:
-```
-# Email stuff
-EMAIL_SUBJECT=I would like to work at $recruiter_company
-MESSAGE_BODY_PATH=email_template.txt
-ATTACHMENT_PATH=resume.pdf
-ATTACHMENT_NAME=FirstName_LastName_Resume.pdf
-
-# Streak stuff
-TIMEZONE=America/Los_Angeles
-STREAK_TOKEN=classic:C/THIS+IS+/NOT/A/REAL TOKEN
-ENABLE_STREAK_SCHEDULING=True
-SCHEDULE_CSV_PATH=scheduler.csv
-STREAK_EMAIL_ADDRESS=first.last@gmail.com
-
-```
-- `EMAIL_SUBJECT`: The subject of the email. The script will replace the `$recruiter_company` variable with the value provided in the command line arguments. Interally the script is using [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating) to replace the variables.
-
-- `MESSAGE_BODY_PATH`: The name of the file to process. The file should use Python's templating syntax to have the following variables: `recruiter_name`, `$recruiter_company`. The script will replace these variables with the values provided in the command line arguments. For example, the `email_template.txt` file could look like this:
-```
-Dear $recruiter_name,
-
-I am interested in the position at $recruiter_company.
-```
-- `ATTACHMENT_PATH`: The path to the attachment file.
-- `ATTACHMENT_NAME`: The name of the attachment file that will be sent to the recruiter.
 
 # Usage
 
@@ -89,33 +36,68 @@ options:
   -h, --help            show this help message and exit
   -ap, --attachment_path [ATTACHMENT_PATH]
                         The path to the attachment file, if this is provided, attachment_name
-                        must also be provided env: ATTACHMENT_PATH
+                        must also be provided Overrides the ATTACHMENT_PATH environment variable
   -an, --attachment_name [ATTACHMENT_NAME]
-                        The name of the attachment file env: ATTACHMENT_NAME
+                        The name of the attachment file Overrides the ATTACHMENT_NAME
+                        environment variable
   -s, --subject [SUBJECT]
-                        The subject of the email message as a string template env: EMAIL_SUBJECT
+                        The subject of the email message as a string template. Overrides the
+                        EMAIL_SUBJECT environment variable.
   -m, --message_body_path [MESSAGE_BODY_PATH]
-                        The path to the message body template. env: MESSAGE_BODY_PATH
+                        The path to the message body template. Overrides the MESSAGE_BODY_PATH
+                        environment variable.
   -tz, --timezone [TIMEZONE]
-                        The timezone to use for scheduling emails (America/New_York) env:
-                        TIMEZONE This is used to determine the time range so it should be the
-                        recipient's timezone.
+                        The timezone to use for scheduling emails (America/New_York) Overrides
+                        the TIMEZONE environment variable. This is used to determine the time
+                        range so it should be the recipient's timezone.
   -sch, --schedule      Whether the email should be tracked or not. env
                         ENABLE_STREAK_SCHEDULING. If set, the streak token must be provided via
                         env variable STREAK_TOKEN
   -scsv, --schedule_csv_path [SCHEDULE_CSV_PATH]
-                        CSV to use for scheduling the emails env: SCHEDULE_CSV_PATH. Note: the
-                        argument scheduled needs to be passed for this to be used
+                        CSV to use for scheduling the emails. Overrides the SCHEDULE_CSV_PATH
+                        environment variable. Note: the argument scheduled needs to be passed
+                        for this to be used
   -e, --email_address [EMAIL_ADDRESS]
-                        The email address to use in streak scheduling emails env:
-                        STREAK_EMAIL_ADDRESS If not provided, the email address of the
+                        The email address to send to the Streak API. Overrides the
+                        STREAK_EMAIL_ADDRESS. If not provided, the email address of the
                         authenticated user will be used. Note: the argument scheduled needs to
                         be passed for this to be used
   -t, --token_path [TOKEN_PATH]
-                        The path to the token.json file. Defaults to token.json. env: TOKEN_PATH
+                        The path to the token.json file. The default value is token.json.
+                        Overrides the TOKEN_PATH environment variable
   -c, --creds_path [CREDS_PATH]
-                        The path to the credentials.json file, default:credentials.json env:
-                        CREDS_PATH
+                        The path to the credentials.json file. The default value is
+                        credentials.json. Overrides the CREDS_PATH environment variable
+
+```
+## Templating
+Both `EMAIL_SUBJECT` and `MESSAGE_BODY_PATH` support templating. The `automate-emails.py`. The rules of templating are as follows:
+- `EMAIL_SUBJECT`: The script will replace the `$recruiter_company` variable with the value provided in the command line arguments. Interally the script is using [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating) to replace the variables.
+The subject could look like `Interested in $recruiter_company`
+
+- `MESSAGE_BODY_PATH`: The name of the file to process. The file should use Python's templating syntax to have the following variables: `recruiter_name`, `recruiter_company`. The script will replace these variables with the values provided in the command line arguments. For example, the `email_template.txt` file could look like this:
+```
+Dear $recruiter_name,
+
+I am interested in the position at $recruiter_company.
+```
+
+## Sample Environment Variables
+The following environment variables are set in my personal environment
+```
+# Email stuff
+EMAIL_SUBJECT=I would like to work at $recruiter_company
+MESSAGE_BODY_PATH=email_template.txt
+ATTACHMENT_PATH=resume.pdf
+ATTACHMENT_NAME=FirstName_LastName_Resume.pdf
+
+# Streak stuff
+TIMEZONE=America/Los_Angeles
+STREAK_TOKEN=classic:C/THIS+IS+/NOT/A/REAL TOKEN
+ENABLE_STREAK_SCHEDULING=True
+SCHEDULE_CSV_PATH=scheduler.csv
+STREAK_EMAIL_ADDRESS=first.last@gmail.com
+
 ```
 
 ## Schedule Emails
