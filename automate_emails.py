@@ -218,10 +218,15 @@ if __name__ == "__main__":
         args.followup,
         EnvironmentVariables.ENABLE_FOLLOWUP,
     )
+    token_path = get_arg_or_env(
+        args.token_path,
+        EnvironmentVariables.TOKEN_PATH,
+        default="token.json",
+    )
 
     # Log follow-up status
 
-    token_path = Path(args.token_path)
+    token_path = Path(token_path)
     attachment = (
         Path(attachment_path_string).read_bytes() if attachment_path_string else None
     )
@@ -235,8 +240,20 @@ if __name__ == "__main__":
         with token_path.open("w") as file:
             file.write(creds.to_json())
     else:
-        logger.error("No token.json file found")
-        sys.exit(1)
+        logger.info("No token JSON file found, logging in with credentials")
+        creds_path = get_arg_or_env(
+            args.creds_path,
+            EnvironmentVariables.CREDS_PATH,
+            default="credentials.json",
+        )
+        creds_path = Path(args.creds_path)
+        if not creds_path.exists():
+            logger.error("No credentials JSON file found")
+            sys.exit(1)
+        creds = gmail_api.login(token=None, credentials_path=creds_path)
+        with token_path.open("w") as file:
+            file.write(creds.to_json())
+            logger.info("Token JSON file created")
 
     email_contents = process_string(
         template,

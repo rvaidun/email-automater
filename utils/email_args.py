@@ -22,6 +22,8 @@ class EnvironmentVariables(Enum):
     STREAK_EMAIL_ADDRESS = "STREAK_EMAIL_ADDRESS"
     SCHEDULE_CSV_PATH = "SCHEDULE_CSV_PATH"
     ENABLE_STREAK_SCHEDULING = "ENABLE_STREAK_SCHEDULING"
+    TOKEN_PATH = "TOKEN_PATH"  # noqa: S105
+    CREDS_PATH = "CREDS_PATH"
 
     # Follow-up specific variables
     FOLLOWUP_BODY_PATH = "FOLLOWUP_BODY_PATH"
@@ -63,6 +65,9 @@ def get_arg_or_env(
     value = os.getenv(env_var.value)
     if value is not None:
         return value
+    if default is not None:
+        return default
+    # If we reach here we have not found a value
     if required:
         s = f"Missing required argument or environment variable: {env_var.value}"
         raise ValueError(s)
@@ -131,7 +136,6 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
             {EnvironmentVariables.STREAK_TOKEN.value}",
         action="store_const",
         const=True,
-        default=None,
     )
     parser.add_argument(
         "-scsv",
@@ -156,9 +160,17 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
         "-t",
         "--token_path",
         type=str,
-        help="The path to the token.json file. Defaults to token.json",
+        help=f"The path to the token.json file. Defaults to token.json. env: \
+            {EnvironmentVariables.TOKEN_PATH.value}",
         nargs="?",
-        default="token.json",
+    )
+    parser.add_argument(
+        "-c",
+        "--creds_path",
+        type=str,
+        help=f"The path to the credentials.json file, default:credentials.json env:\
+            {EnvironmentVariables.CREDS_PATH.value}",
+        nargs="?",
     )
     parser.add_argument(
         "-fd",
@@ -204,7 +216,6 @@ def add_initial_email_args(parser: argparse.ArgumentParser) -> None:
             {EnvironmentVariables.ENABLE_FOLLOWUP.value}",
         action="store_const",
         const=True,
-        default=None,
     )
     parser.add_argument(
         "-fw",
