@@ -219,7 +219,7 @@ if __name__ == "__main__":
             EnvironmentVariables.CREDS_PATH,
             default="credentials.json",
         )
-        creds_path = Path(args.creds_path)
+        creds_path = Path(creds_path)
         if not creds_path.exists():
             logger.error("No credentials JSON file found")
             sys.exit(1)
@@ -248,7 +248,6 @@ if __name__ == "__main__":
         args.recruiter_company,
     )
     draft = gmail_api.save_draft(email_message)
-    logger.info("Draft saved to gmail")
     if should_schedule:
         timezone = get_arg_or_env(
             args.timezone,

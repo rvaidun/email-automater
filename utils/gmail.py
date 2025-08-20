@@ -90,7 +90,7 @@ class GmailAPI:
                 .execute()
             )
             logger.debug("Draft: %s", draft)
-            logger.info("Draft saved")
+            logger.debug("Draft saved")
         except HttpError:
             logger.exception("An error occurred saving the draft")
             return False

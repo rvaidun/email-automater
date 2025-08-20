@@ -7,20 +7,36 @@ See a demo [here](https://youtu.be/Ef5i8DboJP4).
 2. Create a virtual environment `python3 -m venv venv`
 3. Activate the virtual environment `source venv/bin/activate`
 4. Install the requirements `pip install -r requirements.txt`
+Steps 2-4 can be skipped if using `uv` package manager.
+Simply run `uv sync` and all packages will be installed in virtual environment.
+
+
 5. Follow the instructions [here](https://developers.google.com/gmail/api/quickstart/python) to enable the Gmail API and download the `credentials.json` file. Save the file in the root directory of the repository.
 
 Your directory structure should look like this:
 ```
 .
-├── .env
-├── .gitignore
-├── automate_emails.py
-├── credentials.json
-├── email_template.txt
 ├── README.md
+├── automate_emails.py
+├── pyproject.toml
 ├── requirements.txt
-├── resume.pdf
-└── token.json
+├── scheduler.csv
+├── tests
+│   ├── __init__.py
+│   ├── test_automate_emails.py
+│   ├── test_email_args.py
+│   ├── test_gmail.py
+│   ├── test_schedule_helper.py
+│   └── test_streak.py
+├── utils
+│   ├── __init__.py
+│   ├── customformatter.py
+│   ├── email_args.py
+│   ├── funcs.py
+│   ├── gmail.py
+│   ├── schedule_helper.py
+│   └── streak.py
+└── uv.lock
 ```
 
 The `token.json` file will not exist yet if you haven't run the script yet. The `token.json` file stores the login credentials required to access your Google account so you don't have to relogin each time you run the script. If the file does not exist you will be prompted to login to Google using standard Oauth2 flow.
