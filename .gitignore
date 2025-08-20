@@ -8,7 +8,5 @@ credentials.json
 *.pyc
 .DS_Store
 
-followup_db.json
-followup.log
 __pycache__/
 .coverage

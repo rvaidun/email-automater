@@ -57,7 +57,7 @@ def test_login_with_expired_token(gmail_api, mock_credentials):
     """Test login with expired token that needs refreshing."""
     mock_credentials.valid = False
     mock_credentials.expired = True
-    mock_credentials.refresh_token = "refresh_token"  # noqa: S105
+    mock_credentials.refresh_token = "refresh_token"  # noqa: S105 this is not a real token
 
     with patch("utils.gmail.Credentials.from_authorized_user_info") as mock_from_auth:
         mock_from_auth.return_value = mock_credentials

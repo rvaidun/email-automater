@@ -20,13 +20,17 @@ class GmailAPI:
     def __init__(self) -> None:
         """Initialize the GmailAPI object."""
 
-    def login(self, token: dict | None = None) -> Credentials:
+    def login(
+        self, token: dict | None = None, credentials_path: str | None = None
+    ) -> Credentials:
         """
         Log in to the Gmail API and sets self.service to the authenticated service.
 
         Args:
             token (dict): The token information to use for authentication.
-            Defaults to None.
+                Defaults to None.
+            credentials_path (str): The path to the credentials file.
+                Defaults to None
             If None, the user will be prompted to log in.
 
         Returns:
@@ -35,17 +39,30 @@ class GmailAPI:
 
         """
         creds = None
-        if token:
+        if credentials_path is not None:
+            logger.debug("Using credentials from %s", credentials_path)
+            flow = InstalledAppFlow.from_client_secrets_file(credentials_path, SCOPES)
+            creds = flow.run_local_server(port=0)
+
+        elif token is not None:
+            logger.debug("Using token for authentication")
             creds = Credentials.from_authorized_user_info(token)
         # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
+        if not creds:
+            logger.error(
+                "No credentials provided. Please pass either token dict or \
+                    credentials path."
+            )
+            msg = "No credentials provided."
+            raise ValueError(msg)
+        if not creds.valid:
+            if creds.expired and creds.refresh_token:
+                logger.debug("Refreshing expired credentials")
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    "credentials.json", SCOPES
-                )
-                creds = flow.run_local_server(port=0)
+                logger.error("No valid credentials available.")
+                msg = "No valid credentials available."
+                raise ValueError(msg)
         self.service = build("gmail", "v1", credentials=creds, cache_discovery=False)
         return creds
 
@@ -73,7 +90,7 @@ class GmailAPI:
                 .execute()
             )
             logger.debug("Draft: %s", draft)
-            logger.info("Draft saved")
+            logger.debug("Draft saved")
         except HttpError:
             logger.exception("An error occurred saving the draft")
             return False
