@@ -71,8 +71,8 @@ options:
 
 ```
 ## Templating
-Both `EMAIL_SUBJECT` and `MESSAGE_BODY_PATH` support templating. The `automate-emails.py`. The rules of templating are as follows:
-- `EMAIL_SUBJECT`: The script will replace the `$recruiter_company` variable with the value provided in the command line arguments. Interally the script is using [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating) to replace the variables.
+Both `EMAIL_SUBJECT` and `MESSAGE_BODY_PATH` support templating. The `automate-emails.py` script uses [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating) to replace the values represented by these environment variables. The rules of templating are as follows:
+- `EMAIL_SUBJECT`: The script will replace the `$recruiter_company` templating variable with the value provided in the command line arguments.
 The subject could look like `Interested in $recruiter_company`
 
 - `MESSAGE_BODY_PATH`: The name of the file to process. The file should use Python's templating syntax to have the following variables: `recruiter_name`, `recruiter_company`. The script will replace these variables with the values provided in the command line arguments. For example, the `email_template.txt` file could look like this:
@@ -87,7 +87,7 @@ The following environment variables are set in my personal environment
 ```
 # Email stuff
 EMAIL_SUBJECT=I would like to work at $recruiter_company
-MESSAGE_BODY_PATH=email_template.txt
+MESSAGE_BODY_PATH=email_template.html
 ATTACHMENT_PATH=resume.pdf
 ATTACHMENT_NAME=FirstName_LastName_Resume.pdf
 
@@ -119,18 +119,18 @@ DAY,START_TIME,END_TIME
 3, 14:00, 14:30
 4, 10:00, 11:00
 ```
-The script will send the email to the recruiter at a random time in the earliest possible range. See the following cases:
-1. If it is Monday 9:15 AM we should send email at a random time between 10:00 AM and 11:00 AM
-2. If it is Monday 10:30 AM we should send email right now since the time is between 10:00 AM and 11:00 AM
-3. If it is Monday 13:00 PM we should send email at a random time between 14:00 PM and 14:30 PM
-4. If it is Monday 15:00 PM we should send email at a random time between 10:00 AM and 11:00 AM on Tuesday
-5. If it is Friday 13:00 PM we should send email at a random time between 10:00 AM and 11:00 AM on Monday
+The script will send the email to the recruiter at a random time in the earliest possible range. See the following cases which show how the emails will get scheduled if you use the above CSV:
+1. If it is Monday 9:15 AM the email will be scheduled for a random time between 10:00 AM and 11:00 AM
+2. If it is Monday 10:30 AM the email will be sent now since the time is between 10:00 AM and 11:00 AM
+3. If it is Monday 13:00 PM the email will be scheduled for a random time between 14:00 PM and 14:30 PM
+4. If it is Monday 15:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Tuesday
+5. If it is Friday 13:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Monday
 
 I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
 
 You also need to provide `STREAK_TOKEN` via environment variable, you can get this by inspecting the network requests when you schedule an email in Streak. Look for the network request to `https://api.streak.com/api/v2/sendlaters` and copy the `Authorization` header value without the `Bearer` prefix.
 
-You can also set the `--timezone` flag to specify the timezone to use for scheduling emails. The default is `UTC`.
+You can also set the `--timezone` flag to specify the timezone to use for scheduling emails. The default is `UTC`. This should be the receipients timezone
 # Future
 
 I created this just to help me with my job search. I'm not really planning on adding any new features. However, if you have any suggestions or find any bugs feel free to open an issue or a pull request. The only improvement I can think of is to add a feature to schedule the emails to be sent later natively without stripe. This would require significant engineering effort since the project would have to maintain a DB of scheduled emails and send the emails on time. Adding additional template variables would also be a nice feature to have.
