@@ -197,14 +197,9 @@ if __name__ == "__main__":
         default="token.json",
     )
 
-    # Log follow-up status
-
     token_path = Path(token_path)
-    attachment = (
-        Path(attachment_path_string).read_bytes() if attachment_path_string else None
-    )
-    template = Path(message_body_path).read_text()
 
+    # Login with token
     if token_path.exists():
         with token_path.open("r") as file:
             token = file.read()
@@ -214,6 +209,7 @@ if __name__ == "__main__":
             file.write(creds.to_json())
     else:
         logger.info("No token JSON file found, logging in with credentials")
+        # Try logging in with credentials
         creds_path = get_arg_or_env(
             args.creds_path,
             EnvironmentVariables.CREDS_PATH,
@@ -228,6 +224,11 @@ if __name__ == "__main__":
             file.write(creds.to_json())
             logger.info("Token JSON file created")
 
+    # Setup email contents
+    attachment = (
+        Path(attachment_path_string).read_bytes() if attachment_path_string else None
+    )
+    template = Path(message_body_path).read_text()
     email_contents = process_string(
         template,
         recruiter_name=args.recruiter_name,
@@ -247,7 +248,11 @@ if __name__ == "__main__":
         args.recruiter_name,
         args.recruiter_company,
     )
+
+    # Save draft
     draft = gmail_api.save_draft(email_message)
+
+    # Schedule email
     if should_schedule:
         timezone = get_arg_or_env(
             args.timezone,

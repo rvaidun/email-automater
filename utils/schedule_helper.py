@@ -18,7 +18,7 @@ def parse_time_ranges_csv(
     Parse CSV data containing allowed time ranges and organize by day of week.
 
     Args:
-        csv_reader: String containing CSV data with DAY, START_TIME, END_TIME columns
+        csv_reader: csv.DictReader containing DAY, START_TIME, END_TIME
 
     Returns:
         List of 7 lists (one per day of week), in format (start_time, end_time)
@@ -61,9 +61,9 @@ def get_scheduled_send_time(
         cur_time: Current time to use for scheduling (datetime object)
 
     Returns:
-        True if current time is within an allowed range
-        a datetime object for the next allowed time if found
-        False if no allowed time ranges
+        True IF current time is within an allowed range
+        OR datetime object IF for the next allowed time
+        OR False IF no allowed time ranges
 
     """  # noqa: E501
     now = cur_time or datetime.datetime.now(tz=ZoneInfo(timezone))
