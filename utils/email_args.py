@@ -116,7 +116,7 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
         "-tz",
         "--timezone",
         type=str,
-        help=f"The timezone to use for scheduling emails (America/New_York) \
+        help=f"The timezone to use for scheduling emails (America/New_York). \
             Overrides the {EnvironmentVariables.TIMEZONE.value} environment variable. \
             This is used to determine the time range so it should be the recipient's \
             timezone.",
@@ -125,7 +125,7 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "-sch",
         "--schedule",
-        help=f"Whether the email should be tracked or not. env \
+        help=f"Whether the email should be tracked or not. Overrides the \
             {EnvironmentVariables.ENABLE_STREAK_SCHEDULING.value}. \
             If set, the streak token must be provided via env variable \
             {EnvironmentVariables.STREAK_TOKEN.value}",
@@ -139,7 +139,7 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
         help=f"CSV to use for scheduling the emails. \
             Overrides the {EnvironmentVariables.SCHEDULE_CSV_PATH.value}\
             environment variable. \
-            Note: the argument scheduled needs to be passed for this to be used",
+            Note: --schedule needs to be enabled for this to be used",
         nargs="?",
     )
     parser.add_argument(
@@ -149,7 +149,7 @@ def add_common_email_args(parser: argparse.ArgumentParser) -> None:
         help=f"The email address to send to the Streak API. Overrides the\
             {EnvironmentVariables.STREAK_EMAIL_ADDRESS.value}. \
             If not provided, the email address of the authenticated user will be used. \
-            Note: the argument scheduled needs to be passed for this to be used",
+            Note: --schedule needs to be enabled for this to be used",
         nargs="?",
     )
     parser.add_argument(
@@ -187,7 +187,7 @@ def add_initial_email_args(parser: argparse.ArgumentParser) -> None:
         "--attachment_path",
         type=str,
         help=f"The path to the attachment file, if this is provided, attachment_name \
-            must also be provided Overrides the \
+            must also be provided. Overrides the \
             {EnvironmentVariables.ATTACHMENT_PATH.value} environment variable",
         nargs="?",
     )
@@ -195,7 +195,7 @@ def add_initial_email_args(parser: argparse.ArgumentParser) -> None:
         "-an",
         "--attachment_name",
         type=str,
-        help=f"The name of the attachment file Overrides the \
+        help=f"The name of the attachment file. Overrides the \
             {EnvironmentVariables.ATTACHMENT_NAME.value} environment variable",
         nargs="?",
     )

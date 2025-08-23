@@ -19,9 +19,10 @@ The `token.json` file will not exist yet if you haven't run the script yet. The 
 # Usage
 
 ```
-usage: automate_emails.py [-h] [-ap [ATTACHMENT_PATH]] [-an [ATTACHMENT_NAME]] [-s [SUBJECT]]
-                          [-m [MESSAGE_BODY_PATH]] [-tz [TIMEZONE]] [-sch]
-                          [-scsv [SCHEDULE_CSV_PATH]] [-e [EMAIL_ADDRESS]] [-t [TOKEN_PATH]]
+usage: automate_emails.py [-h] [-ap [ATTACHMENT_PATH]] [-an [ATTACHMENT_NAME]]
+                          [-s [SUBJECT]] [-m [MESSAGE_BODY_PATH]]
+                          [-tz [TIMEZONE]] [-sch] [-scsv [SCHEDULE_CSV_PATH]]
+                          [-e [EMAIL_ADDRESS]] [-t [TOKEN_PATH]]
                           [-c [CREDS_PATH]]
                           recruiter_company recruiter_name recruiter_email
 
@@ -35,39 +36,43 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -ap, --attachment_path [ATTACHMENT_PATH]
-                        The path to the attachment file, if this is provided, attachment_name
-                        must also be provided Overrides the ATTACHMENT_PATH environment variable
+                        The path to the attachment file, if this is provided,
+                        attachment_name must also be provided. Overrides the
+                        ATTACHMENT_PATH environment variable
   -an, --attachment_name [ATTACHMENT_NAME]
-                        The name of the attachment file Overrides the ATTACHMENT_NAME
-                        environment variable
+                        The name of the attachment file. Overrides the
+                        ATTACHMENT_NAME environment variable
   -s, --subject [SUBJECT]
-                        The subject of the email message as a string template. Overrides the
-                        EMAIL_SUBJECT environment variable.
+                        The subject of the email message as a string template.
+                        Overrides the EMAIL_SUBJECT environment variable.
   -m, --message_body_path [MESSAGE_BODY_PATH]
-                        The path to the message body template. Overrides the MESSAGE_BODY_PATH
-                        environment variable.
+                        The path to the message body template. Overrides the
+                        MESSAGE_BODY_PATH environment variable.
   -tz, --timezone [TIMEZONE]
-                        The timezone to use for scheduling emails (America/New_York) Overrides
-                        the TIMEZONE environment variable. This is used to determine the time
-                        range so it should be the recipient's timezone.
-  -sch, --schedule      Whether the email should be tracked or not. env
-                        ENABLE_STREAK_SCHEDULING. If set, the streak token must be provided via
-                        env variable STREAK_TOKEN
+                        The timezone to use for scheduling emails
+                        (America/New_York). Overrides the TIMEZONE environment
+                        variable. This is used to determine the time range so
+                        it should be the recipient's timezone.
+  -sch, --schedule      Whether the email should be tracked or not. Overrides
+                        the ENABLE_STREAK_SCHEDULING. If set, the streak token
+                        must be provided via env variable STREAK_TOKEN
   -scsv, --schedule_csv_path [SCHEDULE_CSV_PATH]
-                        CSV to use for scheduling the emails. Overrides the SCHEDULE_CSV_PATH
-                        environment variable. Note: the argument scheduled needs to be passed
-                        for this to be used
+                        CSV to use for scheduling the emails. Overrides the
+                        SCHEDULE_CSV_PATH environment variable. Note:
+                        --schedule needs to be enabled for this to be used
   -e, --email_address [EMAIL_ADDRESS]
-                        The email address to send to the Streak API. Overrides the
-                        STREAK_EMAIL_ADDRESS. If not provided, the email address of the
-                        authenticated user will be used. Note: the argument scheduled needs to
-                        be passed for this to be used
+                        The email address to send to the Streak API. Overrides
+                        the STREAK_EMAIL_ADDRESS. If not provided, the email
+                        address of the authenticated user will be used. Note:
+                        --schedule needs to be enabled for this to be used
   -t, --token_path [TOKEN_PATH]
-                        The path to the token.json file. The default value is token.json.
-                        Overrides the TOKEN_PATH environment variable
+                        The path to the token.json file. The default value is
+                        token.json. Overrides the TOKEN_PATH environment
+                        variable
   -c, --creds_path [CREDS_PATH]
-                        The path to the credentials.json file. The default value is
-                        credentials.json. Overrides the CREDS_PATH environment variable
+                        The path to the credentials.json file. The default
+                        value is credentials.json. Overrides the CREDS_PATH
+                        environment variable
 
 ```
 ## Templating
