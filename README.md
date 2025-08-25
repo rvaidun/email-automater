@@ -8,7 +8,7 @@ See a demo [here](https://youtu.be/Ef5i8DboJP4).
 3. Activate the virtual environment `source venv/bin/activate`
 4. Install the requirements `pip install -r requirements.txt`
 
-Steps 2-4 can be skipped if using `uv` package manager.
+Steps 2-4 can be skipped if using [uv](https://github.com/astral-sh/uv) package manager.
 Simply run `uv sync` and all packages will be installed in virtual environment.
 
 
@@ -106,7 +106,7 @@ STREAK_EMAIL_ADDRESS=first.last@gmail.com
 ```
 
 ## Schedule Emails
-To enable scheduling emails you need to set the `--schedule` flag. You also need to provide the `--schedule_csv_path` flag which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns:
+To enable scheduling emails you need to set `ENABLE_STREAK_SCHEDULING`. You also need to provide the `SCHEDULE_CSV_PATH` which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns:
 - `DAY`: An integer from 0 to 6 representing the day of the week where 0 is Monday and 6 is Sunday.
 - `START_TIME`: The start time of the email in the format `HH:MM`. 24-hour format.
 - `END_TIME`: The end time of the email in the format `HH:MM`. 24-hour format.
@@ -131,11 +131,11 @@ The script will send the email to the recruiter at a random time in the earliest
 4. If it is Monday 15:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Tuesday
 5. If it is Friday 13:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Monday
 
-I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
+I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. Sending emails at 10-11 and 2-3 is generally the most optimal based on my research. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
 
 You also need to provide `STREAK_TOKEN` via environment variable, you can get this by inspecting the network requests when you schedule an email in Streak. Look for the network request to `https://api.streak.com/api/v2/sendlaters` and copy the `Authorization` header value without the `Bearer` prefix.
 
-You can also set the `--timezone` flag to specify the timezone to use for scheduling emails. The default is `UTC`. This should be the receipients timezone
+You can also set `TIMEZONE` to specify the timezone to use for scheduling emails. The default is `UTC`. This should be the receipients timezone
 # Future
 
 I created this just to help me with my job search. I'm not really planning on adding any new features. However, if you have any suggestions or find any bugs feel free to open an issue or a pull request. The only improvement I can think of is to add a feature to schedule the emails to be sent later natively without stripe. This would require significant engineering effort since the project would have to maintain a DB of scheduled emails and send the emails on time. Adding additional template variables would also be a nice feature to have.
