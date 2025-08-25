@@ -106,7 +106,7 @@ STREAK_EMAIL_ADDRESS=first.last@gmail.com
 ```
 
 ## Schedule Emails
-To enable scheduling emails you need to set the `--schedule` flag. You also need to provide the `--schedule_csv_path` flag which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns:
+To enable scheduling emails you need to set `ENABLE_STREAK_SCHEDULING`. You also need to provide the `SCHEDULE_CSV_PATH` which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns:
 - `DAY`: An integer from 0 to 6 representing the day of the week where 0 is Monday and 6 is Sunday.
 - `START_TIME`: The start time of the email in the format `HH:MM`. 24-hour format.
 - `END_TIME`: The end time of the email in the format `HH:MM`. 24-hour format.
@@ -131,7 +131,7 @@ The script will send the email to the recruiter at a random time in the earliest
 4. If it is Monday 15:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Tuesday
 5. If it is Friday 13:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Monday
 
-I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
+I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. Sending emails at 10-11 and 2-3 is generally the most optimal based on my research. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
 
 You also need to provide `STREAK_TOKEN` via environment variable, you can get this by inspecting the network requests when you schedule an email in Streak. Look for the network request to `https://api.streak.com/api/v2/sendlaters` and copy the `Authorization` header value without the `Bearer` prefix.
 
