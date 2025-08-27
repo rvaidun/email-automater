@@ -26,6 +26,7 @@ class GmailAPI:
         """
         Log in to the Gmail API and sets self.service to the authenticated service.
 
+        If credentials_path is provided token will be ignored
         Args:
             token (dict): The token information to use for authentication.
                 Defaults to None.
