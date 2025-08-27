@@ -108,8 +108,8 @@ STREAK_EMAIL_ADDRESS=first.last@gmail.com
 ## Schedule Emails
 To enable scheduling emails you need to set `ENABLE_STREAK_SCHEDULING`. You also need to provide the `SCHEDULE_CSV_PATH` which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns:
 - `DAY`: An integer from 0 to 6 representing the day of the week where 0 is Monday and 6 is Sunday.
-- `START_TIME`: The start time of the email in the format `HH:MM`. 24-hour format.
-- `END_TIME`: The end time of the email in the format `HH:MM`. 24-hour format.
+- `START_TIME`: The start time of the time range emails should be sent in the format `HH:MM`. 24-hour format.
+- `END_TIME`: The end time of the time range emails should be sent in the format `HH:MM`. 24-hour format.
 
 For example:
 ```csv
