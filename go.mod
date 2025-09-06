@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/joho/godotenv v1.5.1
+	github.com/spf13/pflag v1.0.10
 	golang.org/x/oauth2 v0.15.0
 	google.golang.org/api v0.153.0
 )

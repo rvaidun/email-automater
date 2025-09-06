@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	"emailer/internal/argparse"
 	"emailer/internal/config"
 	"emailer/internal/gmail"
 	"emailer/internal/scheduler"
@@ -17,247 +17,6 @@ import (
 
 	"github.com/joho/godotenv"
 )
-
-func main() {
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found: %v", err)
-	}
-
-	// Parse command line arguments
-	args := parseArgs()
-
-	// Validate required arguments
-	if err := validateArgs(args); err != nil {
-		log.Fatalf("Validation error: %v", err)
-	}
-
-	// Create Gmail client
-	gmailClient := gmail.NewClient()
-
-	// Get values from args or env vars
-	subject := getArgOrEnv(args.subject, config.EnvEmailSubject, true, "")
-	messageBodyPath := getArgOrEnv(args.messageBodyPath, config.EnvMessageBodyPath, true, "")
-	attachmentPathString := getArgOrEnv(args.attachmentPath, config.EnvAttachmentPath, false, "")
-	attachmentName := getArgOrEnv(args.attachmentName, config.EnvAttachmentName, false, "")
-
-	// Validate attachment parameters
-	if (attachmentPathString != "") != (attachmentName != "") {
-		log.Fatal("attachment_path and attachment_name must both appear if either is provided")
-	}
-	
-	// Validate attachment file exists if path is provided
-	if attachmentPathString != "" {
-		if _, err := os.Stat(attachmentPathString); err != nil {
-			log.Fatalf("Attachment file not found: %v", err)
-		}
-	}
-
-	shouldSchedule := getBoolArgOrEnv(args.schedule, config.EnvEnableStreakScheduling)
-	tokenPath := getArgOrEnv(args.tokenPath, config.EnvTokenPath, false, "token.json")
-
-	// Login with token
-	creds, err := authenticateGmail(gmailClient, tokenPath, args.credsPath)
-	if err != nil {
-		log.Fatalf("Authentication failed: %v", err)
-	}
-
-	// Save updated credentials
-	if err := saveCredentials(creds, tokenPath); err != nil {
-		log.Printf("Warning: Failed to save credentials: %v", err)
-	}
-
-	// Setup email contents
-	var attachment []byte
-	if attachmentPathString != "" {
-		attachment, err = os.ReadFile(attachmentPathString)
-		if err != nil {
-			log.Fatalf("Failed to read attachment file: %v", err)
-		}
-	}
-
-	// Validate message template file exists
-	if _, err := os.Stat(messageBodyPath); err != nil {
-		log.Fatalf("Message template file not found: %v", err)
-	}
-
-	templateContent, err := os.ReadFile(messageBodyPath)
-	if err != nil {
-		log.Fatalf("Failed to read message template: %v", err)
-	}
-
-	emailContents, err := processTemplate(string(templateContent), map[string]string{
-		"recruiter_name":    args.recruiterName,
-		"recruiter_company": args.recruiterCompany,
-	})
-	if err != nil {
-		log.Fatalf("Failed to process template: %v", err)
-	}
-
-	subject, err = processTemplate(subject, map[string]string{
-		"recruiter_company": args.recruiterCompany,
-	})
-	if err != nil {
-		log.Fatalf("Failed to process subject template: %v", err)
-	}
-
-	emailMessage := gmail.CreateEmailMessage(
-		emailContents,
-		args.recruiterEmail,
-		subject,
-		attachment,
-		attachmentName,
-	)
-
-	log.Printf("Recruiter email: %s, Recruiter Name: %s, Recruiter Company: %s",
-		args.recruiterEmail, args.recruiterName, args.recruiterCompany)
-
-	// Save draft
-	draft, err := gmailClient.SaveDraft(emailMessage)
-	if err != nil {
-		log.Fatalf("Failed to save draft: %v", err)
-	}
-
-	// Schedule email if requested
-	if shouldSchedule {
-		timezone := getArgOrEnv(args.timezone, config.EnvTimezone, false, "UTC")
-		streakToken := getArgOrEnv("", config.EnvStreakToken, true, "")
-		csvPath := getArgOrEnv(args.scheduleCsvPath, config.EnvScheduleCsvPath, true, "")
-		streakEmailAddress := getArgOrEnv(args.emailAddress, config.EnvStreakEmailAddress, false, "")
-
-		if streakEmailAddress == "" {
-			user, err := gmailClient.GetCurrentUser()
-			if err != nil {
-				log.Printf("Warning: Failed to get current user: %v", err)
-			} else {
-				streakEmailAddress = user.EmailAddress
-			}
-		}
-
-		if err := scheduleSend(timezone, csvPath, draft, streakToken, streakEmailAddress, args.recruiterEmail, subject); err != nil {
-			log.Printf("Warning: Failed to schedule email: %v", err)
-		}
-	}
-}
-
-type Args struct {
-	recruiterCompany   string
-	recruiterName      string
-	recruiterEmail     string
-	attachmentPath     string
-	attachmentName     string
-	subject            string
-	messageBodyPath    string
-	timezone           string
-	schedule           bool
-	scheduleCsvPath    string
-	emailAddress       string
-	tokenPath          string
-	credsPath          string
-}
-
-func parseArgs() *Args {
-	args := &Args{}
-
-	// Positional arguments
-	flag.StringVar(&args.recruiterCompany, "recruiter-company", "", "The company name of the recruiter")
-	flag.StringVar(&args.recruiterName, "recruiter-name", "", "The full name of the recruiter")
-	flag.StringVar(&args.recruiterEmail, "recruiter-email", "", "The email address of the recruiter")
-
-	// Optional arguments
-	flag.StringVar(&args.attachmentPath, "ap", "", "The path to the attachment file")
-	flag.StringVar(&args.attachmentName, "an", "", "The name of the attachment file")
-	flag.StringVar(&args.subject, "s", "", "The subject of the email message as a string template")
-	flag.StringVar(&args.messageBodyPath, "m", "", "The path to the message body template")
-	flag.StringVar(&args.timezone, "tz", "", "The timezone to use for scheduling emails")
-	flag.BoolVar(&args.schedule, "sch", false, "Whether the email should be scheduled")
-	flag.StringVar(&args.scheduleCsvPath, "scsv", "", "CSV to use for scheduling the emails")
-	flag.StringVar(&args.emailAddress, "e", "", "The email address to send to the Streak API")
-	flag.StringVar(&args.tokenPath, "t", "", "The path to the token.json file")
-	flag.StringVar(&args.credsPath, "c", "", "The path to the credentials.json file")
-
-	flag.Parse()
-
-	// Handle positional arguments
-	if flag.NArg() >= 3 {
-		args.recruiterCompany = flag.Arg(0)
-		args.recruiterName = flag.Arg(1)
-		args.recruiterEmail = flag.Arg(2)
-	}
-
-	return args
-}
-
-// validateArgs validates that required arguments are not blank
-func validateArgs(args *Args) error {
-	if strings.TrimSpace(args.recruiterCompany) == "" {
-		return fmt.Errorf("recruiter company cannot be blank")
-	}
-	if strings.TrimSpace(args.recruiterName) == "" {
-		return fmt.Errorf("recruiter name cannot be blank")
-	}
-	if strings.TrimSpace(args.recruiterEmail) == "" {
-		return fmt.Errorf("recruiter email cannot be blank")
-	}
-	
-	// Basic email validation
-	if !isValidEmail(args.recruiterEmail) {
-		return fmt.Errorf("invalid email format: %s", args.recruiterEmail)
-	}
-	
-	return nil
-}
-
-// isValidEmail performs basic email validation
-func isValidEmail(email string) bool {
-	email = strings.TrimSpace(email)
-	if email == "" {
-		return false
-	}
-	
-	// Check if email contains @ and has at least one character before and after
-	parts := strings.Split(email, "@")
-	if len(parts) != 2 {
-		return false
-	}
-	
-	if strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-		return false
-	}
-	
-	// Check if domain part contains at least one dot
-	if !strings.Contains(parts[1], ".") {
-		return false
-	}
-	
-	return true
-}
-
-func getArgOrEnv(argValue, envVar string, required bool, defaultValue string) string {
-	if argValue != "" {
-		return argValue
-	}
-	if value := os.Getenv(envVar); value != "" {
-		return value
-	}
-	if defaultValue != "" {
-		return defaultValue
-	}
-	if required {
-		log.Fatalf("Missing required argument or environment variable: %s", envVar)
-	}
-	return ""
-}
-
-func getBoolArgOrEnv(argValue bool, envVar string) bool {
-	if argValue {
-		return true
-	}
-	if value := os.Getenv(envVar); value != "" {
-		return strings.ToLower(value) == "true"
-	}
-	return false
-}
 
 func authenticateGmail(client *gmail.Client, tokenPath, credsPath string) (*gmail.Credentials, error) {
 	// Try to load existing token
@@ -366,4 +125,129 @@ func scheduleSend(timezone, csvPath string, draft *gmail.Draft, streakToken, str
 	}
 
 	return streak.ScheduleSendLater(config)
+}
+
+func main() {
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found: %v", err)
+	}
+
+	// Parse command line arguments
+	// create the arg variable. it should be empty struct of argparse.Args
+	args := &argparse.Args{}
+	argparse.ParseArgs(args)
+	// args := argparse.ParseArgs()
+
+	// Validate required arguments
+	if err := argparse.ValidateArgs(args); err != nil {
+		log.Fatalf("Validation error: %v", err)
+	}
+
+	// Create Gmail client
+	gmailClient := gmail.NewClient()
+
+	// Get values from args or env vars
+	subject := argparse.GetArgOrEnv(args.subject, config.EnvEmailSubject, true, "")
+	messageBodyPath := argparse.GetArgOrEnv(args.messageBodyPath, config.EnvMessageBodyPath, true, "")
+	attachmentPathString := argparse.GetArgOrEnv(args.attachmentPath, config.EnvAttachmentPath, false, "")
+	attachmentName := argparse.GetArgOrEnv(args.attachmentName, config.EnvAttachmentName, false, "")
+
+	// Validate attachment parameters
+	if (attachmentPathString != "") != (attachmentName != "") {
+		log.Fatal("attachment_path and attachment_name must both appear if either is provided")
+	}
+
+	// Validate attachment file exists if path is provided
+	if attachmentPathString != "" {
+		if _, err := os.Stat(attachmentPathString); err != nil {
+			log.Fatalf("Attachment file not found: %v", err)
+		}
+	}
+
+	shouldSchedule := getBoolArgOrEnv(args.schedule, config.EnvEnableStreakScheduling)
+	tokenPath := getArgOrEnv(args.tokenPath, config.EnvTokenPath, false, "token.json")
+
+	// Login with token
+	creds, err := authenticateGmail(gmailClient, tokenPath, args.credsPath)
+	if err != nil {
+		log.Fatalf("Authentication failed: %v", err)
+	}
+
+	// Save updated credentials
+	if err := saveCredentials(creds, tokenPath); err != nil {
+		log.Printf("Warning: Failed to save credentials: %v", err)
+	}
+
+	// Setup email contents
+	var attachment []byte
+	if attachmentPathString != "" {
+		attachment, err = os.ReadFile(attachmentPathString)
+		if err != nil {
+			log.Fatalf("Failed to read attachment file: %v", err)
+		}
+	}
+
+	// Validate message template file exists
+	if _, err := os.Stat(messageBodyPath); err != nil {
+		log.Fatalf("Message template file not found: %v", err)
+	}
+
+	templateContent, err := os.ReadFile(messageBodyPath)
+	if err != nil {
+		log.Fatalf("Failed to read message template: %v", err)
+	}
+
+	emailContents, err := processTemplate(string(templateContent), map[string]string{
+		"recruiter_name":    args.recruiterName,
+		"recruiter_company": args.recruiterCompany,
+	})
+	if err != nil {
+		log.Fatalf("Failed to process template: %v", err)
+	}
+
+	subject, err = processTemplate(subject, map[string]string{
+		"recruiter_company": args.recruiterCompany,
+	})
+	if err != nil {
+		log.Fatalf("Failed to process subject template: %v", err)
+	}
+
+	emailMessage := gmail.CreateEmailMessage(
+		emailContents,
+		args.recruiterEmail,
+		subject,
+		attachment,
+		attachmentName,
+	)
+
+	log.Printf("Recruiter email: %s, Recruiter Name: %s, Recruiter Company: %s",
+		args.recruiterEmail, args.recruiterName, args.recruiterCompany)
+
+	// Save draft
+	draft, err := gmailClient.SaveDraft(emailMessage)
+	if err != nil {
+		log.Fatalf("Failed to save draft: %v", err)
+	}
+
+	// Schedule email if requested
+	if shouldSchedule {
+		timezone := getArgOrEnv(args.timezone, config.EnvTimezone, false, "UTC")
+		streakToken := getArgOrEnv("", config.EnvStreakToken, true, "")
+		csvPath := getArgOrEnv(args.scheduleCsvPath, config.EnvScheduleCsvPath, true, "")
+		streakEmailAddress := getArgOrEnv(args.emailAddress, config.EnvStreakEmailAddress, false, "")
+
+		if streakEmailAddress == "" {
+			user, err := gmailClient.GetCurrentUser()
+			if err != nil {
+				log.Printf("Warning: Failed to get current user: %v", err)
+			} else {
+				streakEmailAddress = user.EmailAddress
+			}
+		}
+
+		if err := scheduleSend(timezone, csvPath, draft, streakToken, streakEmailAddress, args.recruiterEmail, subject); err != nil {
+			log.Printf("Warning: Failed to schedule email: %v", err)
+		}
+	}
 }
