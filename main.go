@@ -148,10 +148,10 @@ func main() {
 	gmailClient := gmail.NewClient()
 
 	// Get values from args or env vars
-	subject := argparse.GetArgOrEnv(args.subject, config.EnvEmailSubject, true, "")
-	messageBodyPath := argparse.GetArgOrEnv(args.messageBodyPath, config.EnvMessageBodyPath, true, "")
-	attachmentPathString := argparse.GetArgOrEnv(args.attachmentPath, config.EnvAttachmentPath, false, "")
-	attachmentName := argparse.GetArgOrEnv(args.attachmentName, config.EnvAttachmentName, false, "")
+	subject := argparse.GetArgOrEnv(args.Subject, config.EnvEmailSubject, true, "")
+	messageBodyPath := argparse.GetArgOrEnv(args.MessageBodyPath, config.EnvMessageBodyPath, true, "")
+	attachmentPathString := argparse.GetArgOrEnv(args.AttachmentPath, config.EnvAttachmentPath, false, "")
+	attachmentName := argparse.GetArgOrEnv(args.AttachmentName, config.EnvAttachmentName, false, "")
 
 	// Validate attachment parameters
 	if (attachmentPathString != "") != (attachmentName != "") {
@@ -165,11 +165,11 @@ func main() {
 		}
 	}
 
-	shouldSchedule := getBoolArgOrEnv(args.schedule, config.EnvEnableStreakScheduling)
-	tokenPath := getArgOrEnv(args.tokenPath, config.EnvTokenPath, false, "token.json")
+	shouldSchedule := argparse.GetBoolArgOrEnv(args.Schedule, config.EnvEnableStreakScheduling)
+	tokenPath := argparse.GetArgOrEnv(args.TokenPath, config.EnvTokenPath, false, "token.json")
 
 	// Login with token
-	creds, err := authenticateGmail(gmailClient, tokenPath, args.credsPath)
+	creds, err := authenticateGmail(gmailClient, tokenPath, args.CredsPath)
 	if err != nil {
 		log.Fatalf("Authentication failed: %v", err)
 	}
@@ -199,15 +199,15 @@ func main() {
 	}
 
 	emailContents, err := processTemplate(string(templateContent), map[string]string{
-		"recruiter_name":    args.recruiterName,
-		"recruiter_company": args.recruiterCompany,
+		"recruiter_name":    args.RecruiterName,
+		"recruiter_company": args.RecruiterCompany,
 	})
 	if err != nil {
 		log.Fatalf("Failed to process template: %v", err)
 	}
 
 	subject, err = processTemplate(subject, map[string]string{
-		"recruiter_company": args.recruiterCompany,
+		"recruiter_company": args.RecruiterCompany,
 	})
 	if err != nil {
 		log.Fatalf("Failed to process subject template: %v", err)
@@ -215,14 +215,14 @@ func main() {
 
 	emailMessage := gmail.CreateEmailMessage(
 		emailContents,
-		args.recruiterEmail,
+		args.RecruiterEmail,
 		subject,
 		attachment,
 		attachmentName,
 	)
 
 	log.Printf("Recruiter email: %s, Recruiter Name: %s, Recruiter Company: %s",
-		args.recruiterEmail, args.recruiterName, args.recruiterCompany)
+		args.RecruiterEmail, args.RecruiterName, args.RecruiterCompany)
 
 	// Save draft
 	draft, err := gmailClient.SaveDraft(emailMessage)
@@ -232,10 +232,10 @@ func main() {
 
 	// Schedule email if requested
 	if shouldSchedule {
-		timezone := getArgOrEnv(args.timezone, config.EnvTimezone, false, "UTC")
-		streakToken := getArgOrEnv("", config.EnvStreakToken, true, "")
-		csvPath := getArgOrEnv(args.scheduleCsvPath, config.EnvScheduleCsvPath, true, "")
-		streakEmailAddress := getArgOrEnv(args.emailAddress, config.EnvStreakEmailAddress, false, "")
+		timezone := argparse.GetArgOrEnv(args.Timezone, config.EnvTimezone, false, "UTC")
+		streakToken := argparse.GetArgOrEnv("", config.EnvStreakToken, true, "")
+		csvPath := argparse.GetArgOrEnv(args.ScheduleCsvPath, config.EnvScheduleCsvPath, true, "")
+		streakEmailAddress := argparse.GetArgOrEnv(args.EmailAddress, config.EnvStreakEmailAddress, false, "")
 
 		if streakEmailAddress == "" {
 			user, err := gmailClient.GetCurrentUser()
@@ -246,7 +246,7 @@ func main() {
 			}
 		}
 
-		if err := scheduleSend(timezone, csvPath, draft, streakToken, streakEmailAddress, args.recruiterEmail, subject); err != nil {
+		if err := scheduleSend(timezone, csvPath, draft, streakToken, streakEmailAddress, args.RecruiterEmail, subject); err != nil {
 			log.Printf("Warning: Failed to schedule email: %v", err)
 		}
 	}

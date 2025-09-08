@@ -11,19 +11,19 @@ import (
 )
 
 type Args struct {
-	recruiterCompany string
-	recruiterName    string
-	recruiterEmail   string
-	attachmentPath   string
-	attachmentName   string
-	subject          string
-	messageBodyPath  string
-	timezone         string
-	schedule         bool
-	scheduleCsvPath  string
-	emailAddress     string
-	tokenPath        string
-	credsPath        string
+	RecruiterCompany string
+	RecruiterName    string
+	RecruiterEmail   string
+	AttachmentPath   string
+	AttachmentName   string
+	Subject          string
+	MessageBodyPath  string
+	Timezone         string
+	Schedule         bool
+	ScheduleCsvPath  string
+	EmailAddress     string
+	TokenPath        string
+	CredsPath        string
 	help             bool
 }
 
@@ -62,34 +62,34 @@ func ParseArgs(args *Args) {
 	// Optional arguments with single-character shorthand flags (pflag limitation)
 	// Note: Python version uses multi-character shorthands like -tz, -sch, -scsv, -ap, -an
 	// but pflag only supports single-character shorthands
-	pflag.StringVarP(&args.subject, "subject", "s", "",
+	pflag.StringVarP(&args.Subject, "subject", "s", "",
 		fmt.Sprintf("The subject of the email message as a string template. Overrides the %s environment variable.", config.EnvEmailSubject))
 
-	pflag.StringVarP(&args.messageBodyPath, "message_body_path", "m", "",
+	pflag.StringVarP(&args.MessageBodyPath, "message_body_path", "m", "",
 		fmt.Sprintf("The path to the message body template. Overrides the %s environment variable.", config.EnvMessageBodyPath))
 
-	pflag.StringVarP(&args.timezone, "timezone", "z", "",
+	pflag.StringVarP(&args.Timezone, "timezone", "z", "",
 		fmt.Sprintf("The timezone to use for scheduling emails (America/New_York). Overrides the %s environment variable. This is used to determine the time range so it should be the recipient's timezone.", config.EnvTimezone))
 
-	pflag.BoolVarP(&args.schedule, "schedule", "", false,
+	pflag.BoolVarP(&args.Schedule, "schedule", "", false,
 		fmt.Sprintf("Whether the email should be tracked or not. Overrides the %s. If set, the streak token must be provided via env variable %s", config.EnvEnableStreakScheduling, config.EnvStreakToken))
 
-	pflag.StringVarP(&args.scheduleCsvPath, "schedule_csv_path", "v", "",
+	pflag.StringVarP(&args.ScheduleCsvPath, "schedule_csv_path", "v", "",
 		fmt.Sprintf("CSV to use for scheduling the emails. Overrides the %s environment variable. Note: --schedule needs to be enabled for this to be used", config.EnvScheduleCsvPath))
 
-	pflag.StringVarP(&args.emailAddress, "email_address", "e", "",
+	pflag.StringVarP(&args.EmailAddress, "email_address", "e", "",
 		fmt.Sprintf("The email address to send to the Streak API. Overrides the %s. If not provided, the email address of the authenticated user will be used. Note: --schedule needs to be enabled for this to be used", config.EnvStreakEmailAddress))
 
-	pflag.StringVarP(&args.tokenPath, "token_path", "t", "",
+	pflag.StringVarP(&args.TokenPath, "token_path", "t", "",
 		fmt.Sprintf("The path to the token.json file. The default value is token.json. Overrides the %s environment variable", config.EnvTokenPath))
 
-	pflag.StringVarP(&args.credsPath, "creds_path", "c", "",
+	pflag.StringVarP(&args.CredsPath, "creds_path", "c", "",
 		fmt.Sprintf("The path to the credentials.json file. The default value is credentials.json. Overrides the %s environment variable", config.EnvCredsPath))
 
-	pflag.StringVarP(&args.attachmentPath, "attachment_path", "a", "",
+	pflag.StringVarP(&args.AttachmentPath, "attachment_path", "a", "",
 		fmt.Sprintf("The path to the attachment file, if this is provided, attachment_name must also be provided. Overrides the %s environment variable", config.EnvAttachmentPath))
 
-	pflag.StringVarP(&args.attachmentName, "attachment_name", "n", "",
+	pflag.StringVarP(&args.AttachmentName, "attachment_name", "n", "",
 		fmt.Sprintf("The name of the attachment file. Overrides the %s environment variable", config.EnvAttachmentName))
 
 	pflag.Parse()
@@ -102,9 +102,9 @@ func ParseArgs(args *Args) {
 
 	// Handle positional arguments (recruiter_company, recruiter_name, recruiter_email)
 	if pflag.NArg() == 3 {
-		args.recruiterCompany = pflag.Arg(0)
-		args.recruiterName = pflag.Arg(1)
-		args.recruiterEmail = pflag.Arg(2)
+		args.RecruiterCompany = pflag.Arg(0)
+		args.RecruiterName = pflag.Arg(1)
+		args.RecruiterEmail = pflag.Arg(2)
 	} else {
 		printUsage(true)
 		os.Exit(1)
@@ -114,19 +114,19 @@ func ParseArgs(args *Args) {
 
 // validateArgs validates that required arguments are not blank
 func ValidateArgs(args *Args) error {
-	if strings.TrimSpace(args.recruiterCompany) == "" {
+	if strings.TrimSpace(args.RecruiterCompany) == "" {
 		return fmt.Errorf("recruiter company cannot be blank")
 	}
-	if strings.TrimSpace(args.recruiterName) == "" {
+	if strings.TrimSpace(args.RecruiterName) == "" {
 		return fmt.Errorf("recruiter name cannot be blank")
 	}
-	if strings.TrimSpace(args.recruiterEmail) == "" {
+	if strings.TrimSpace(args.RecruiterEmail) == "" {
 		return fmt.Errorf("recruiter email cannot be blank")
 	}
 
 	// Basic email validation
-	if !isValidEmail(args.recruiterEmail) {
-		return fmt.Errorf("invalid email format: %s", args.recruiterEmail)
+	if !isValidEmail(args.RecruiterEmail) {
+		return fmt.Errorf("invalid email format: %s", args.RecruiterEmail)
 	}
 
 	return nil
@@ -173,7 +173,7 @@ func GetArgOrEnv(argValue, envVar string, required bool, defaultValue string) st
 	return ""
 }
 
-func getBoolArgOrEnv(argValue bool, envVar string) bool {
+func GetBoolArgOrEnv(argValue bool, envVar string) bool {
 	if argValue {
 		return true
 	}
