@@ -52,12 +52,12 @@ def process_string(s: str, **kwargs: dict) -> str:
     """
     Process a file and substitute placeholders with values.
 
-    filename: The name of the file to process.
+    s: The string to process.
     **kwargs: The key-value pairs to substitute in the file.
-    For example, if the file contains the placeholder ${name},
+    For example, if the string contains the placeholder ${name},
     you can pass name='John' to substitute it with 'John'.
 
-    Returns the processed file contents as a string.
+    Returns the processed string as a string.
     """
     template = Template(s)
     return template.substitute(**kwargs)
