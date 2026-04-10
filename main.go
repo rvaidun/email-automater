@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"text/template"
 	"time"
 
 	"emailer/internal/argparse"
@@ -31,7 +30,7 @@ func authenticateGmail(client *gmail.Client, tokenPath, credsPath string) (*gmai
 			return nil, fmt.Errorf("failed to parse token file: %v", err)
 		}
 
-		return client.LoginWithToken(&token)
+		return client.LoginWithToken(&token, credsPath)
 	}
 
 	// Try logging in with credentials
@@ -58,18 +57,22 @@ func saveCredentials(creds *gmail.Credentials, tokenPath string) error {
 	return nil
 }
 
+// processTemplate substitutes ${var} and $var placeholders in templateStr using data,
+// matching Python's string.Template.substitute() behaviour. Returns an error if the
+// template references a key that is not present in data.
 func processTemplate(templateStr string, data map[string]string) (string, error) {
-	tmpl, err := template.New("email").Parse(templateStr)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse template: %v", err)
+	var missing []string
+	result := os.Expand(templateStr, func(key string) string {
+		if val, ok := data[key]; ok {
+			return val
+		}
+		missing = append(missing, key)
+		return ""
+	})
+	if len(missing) > 0 {
+		return "", fmt.Errorf("template references undefined variables: %s", strings.Join(missing, ", "))
 	}
-
-	var result strings.Builder
-	if err := tmpl.Execute(&result, data); err != nil {
-		return "", fmt.Errorf("failed to execute template: %v", err)
-	}
-
-	return result.String(), nil
+	return result, nil
 }
 
 func scheduleSend(timezone, csvPath string, draft *gmail.Draft, streakToken, streakEmailAddress, toAddress, subject string) error {
@@ -94,7 +97,7 @@ func scheduleSend(timezone, csvPath string, draft *gmail.Draft, streakToken, str
 		return fmt.Errorf("failed to parse CSV: %v", err)
 	}
 
-	sendTime, err := scheduler.GetScheduledSendTime(dayRanges, timezone)
+	sendTime, err := scheduler.GetScheduledSendTime(dayRanges, timezone, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get scheduled time: %v", err)
 	}

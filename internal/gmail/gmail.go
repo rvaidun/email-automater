@@ -55,9 +55,9 @@ func NewClient() *Client {
 }
 
 // LoginWithToken authenticates using an existing token
-func (c *Client) LoginWithToken(token *Token) (*Credentials, error) {
+func (c *Client) LoginWithToken(token *Token, credsPath string) (*Credentials, error) {
 	// We need to read the credentials file to get the client config
-	credsData, err := os.ReadFile("credentials.json")
+	credsData, err := os.ReadFile(credsPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read credentials file: %v", err)
 	}
