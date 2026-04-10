@@ -83,7 +83,7 @@ func ParseArgs(args *Args) {
 	pflag.StringVarP(&args.TokenPath, "token_path", "t", "",
 		fmt.Sprintf("The path to the token.json file. The default value is token.json. Overrides the %s environment variable", config.EnvTokenPath))
 
-	pflag.StringVarP(&args.CredsPath, "creds_path", "c", "",
+	pflag.StringVarP(&args.CredsPath, "creds_path", "c", "credentials.json",
 		fmt.Sprintf("The path to the credentials.json file. The default value is credentials.json. Overrides the %s environment variable", config.EnvCredsPath))
 
 	pflag.StringVarP(&args.AttachmentPath, "attachment_path", "a", "",

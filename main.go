@@ -35,9 +35,6 @@ func authenticateGmail(client *gmail.Client, tokenPath, credsPath string) (*gmai
 	}
 
 	// Try logging in with credentials
-	if credsPath == "" {
-		credsPath = "credentials.json"
-	}
 
 	if _, err := os.Stat(credsPath); err != nil {
 		return nil, fmt.Errorf("no credentials JSON file found")
@@ -147,6 +144,18 @@ func main() {
 	// Create Gmail client
 	gmailClient := gmail.NewClient()
 
+	// Login with token
+	tokenPath := argparse.GetArgOrEnv(args.TokenPath, config.EnvTokenPath, false, "token.json")
+
+	creds, err := authenticateGmail(gmailClient, tokenPath, args.CredsPath)
+	if err != nil {
+		log.Fatalf("Authentication failed: %v", err)
+	}
+	// Save updated credentials
+	if err := saveCredentials(creds, tokenPath); err != nil {
+		log.Printf("Warning: Failed to save credentials: %v", err)
+	}
+
 	// Get values from args or env vars
 	subject := argparse.GetArgOrEnv(args.Subject, config.EnvEmailSubject, true, "")
 	messageBodyPath := argparse.GetArgOrEnv(args.MessageBodyPath, config.EnvMessageBodyPath, true, "")
@@ -166,18 +175,6 @@ func main() {
 	}
 
 	shouldSchedule := argparse.GetBoolArgOrEnv(args.Schedule, config.EnvEnableStreakScheduling)
-	tokenPath := argparse.GetArgOrEnv(args.TokenPath, config.EnvTokenPath, false, "token.json")
-
-	// Login with token
-	creds, err := authenticateGmail(gmailClient, tokenPath, args.CredsPath)
-	if err != nil {
-		log.Fatalf("Authentication failed: %v", err)
-	}
-
-	// Save updated credentials
-	if err := saveCredentials(creds, tokenPath); err != nil {
-		log.Printf("Warning: Failed to save credentials: %v", err)
-	}
 
 	// Setup email contents
 	var attachment []byte
