@@ -87,15 +87,21 @@ func ParseTimeRangesCSV(csvPath string) (*DayRanges, error) {
 	return dayRanges, nil
 }
 
-// GetScheduledSendTime determines when to send an email based on current time and allowed ranges
-func GetScheduledSendTime(dayRanges *DayRanges, timezone string) (*time.Time, error) {
+// GetScheduledSendTime determines when to send an email based on current time and allowed ranges.
+// If curTime is non-nil it is used instead of time.Now() (useful for testing).
+func GetScheduledSendTime(dayRanges *DayRanges, timezone string, curTime *time.Time) (*time.Time, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		log.Printf("Warning: invalid timezone %s, using UTC", timezone)
 		loc = time.UTC
 	}
 
-	now := time.Now().In(loc)
+	var now time.Time
+	if curTime != nil {
+		now = curTime.In(loc)
+	} else {
+		now = time.Now().In(loc)
+	}
 	currentDay := int(now.Weekday())
 	if currentDay == 0 { // Sunday
 		currentDay = 6

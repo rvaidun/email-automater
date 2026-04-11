@@ -1,0 +1,30 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ go, claude/review-go-rewrite-gaps-tRbOK ]
+  pull_request:
+    branches: [ go ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Build
+      run: go build ./...
+
+    - name: Run tests
+      run: go test ./...
+
+    - name: Vet
+      run: go vet ./...
