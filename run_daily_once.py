@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from utils.daily_schedule import (
     DEFAULT_SCHEDULE_CSV_PATH,
     DEFAULT_TIMEZONE,
+    resolve_schedule_csv_path,
     scheduled_run_start,
     should_run_today,
 )
@@ -88,7 +89,7 @@ def main() -> int:
             os.getenv("SCHEDULE_CSV_PATH", DEFAULT_SCHEDULE_CSV_PATH).strip()
             or DEFAULT_SCHEDULE_CSV_PATH
         )
-        schedule_csv_path = _resolve_repo_path(schedule_csv_value)
+        schedule_csv_path = resolve_schedule_csv_path(REPO_ROOT, schedule_csv_value)
         if not should_run_today(now, schedule_csv_path=schedule_csv_path):
             sys.stdout.write(
                 f"No scheduled pipeline run on {now.strftime('%A')}; skipping.\n"

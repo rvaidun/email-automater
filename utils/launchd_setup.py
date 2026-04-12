@@ -14,8 +14,8 @@ from xml.sax.saxutils import escape
 from utils.daily_schedule import (
     DAILY_RUN_HOUR,
     DAILY_RUN_MINUTE,
-    DEFAULT_SCHEDULE_CSV_PATH,
     launchd_weekdays,
+    resolve_schedule_csv_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -61,11 +61,7 @@ def build_daily_pipeline_launch_agent(
         if log_path
         else resolved_repo / "daily_run.log"
     )
-    resolved_schedule = (
-        Path(schedule_csv_path).expanduser().resolve()
-        if schedule_csv_path
-        else resolved_repo / DEFAULT_SCHEDULE_CSV_PATH
-    )
+    resolved_schedule = resolve_schedule_csv_path(resolved_repo, schedule_csv_path)
     runner_path = resolved_repo / "run_daily_once.py"
     schedule_blocks = ["  <key>StartCalendarInterval</key>", "  <array>"]
     for weekday in launchd_weekdays(resolved_schedule):

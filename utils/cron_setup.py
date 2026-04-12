@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from utils.daily_schedule import DEFAULT_SCHEDULE_CSV_PATH, cron_fields
+from utils.daily_schedule import cron_fields, resolve_schedule_csv_path
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +33,7 @@ def build_daily_pipeline_cron_line(
         if log_path
         else repo_path / "daily_run.log"
     )
-    resolved_schedule = (
-        Path(schedule_csv_path).expanduser().resolve()
-        if schedule_csv_path
-        else repo_path / DEFAULT_SCHEDULE_CSV_PATH
-    )
+    resolved_schedule = resolve_schedule_csv_path(repo_path, schedule_csv_path)
     return (
         f"{cron_fields(resolved_schedule)} cd {repo_path} && {resolved_python} "
         f"run_daily_once.py >> {resolved_log} 2>&1"

@@ -23,6 +23,19 @@ def test_scheduled_weekdays_follow_custom_schedule_csv(tmp_path):
     assert daily_schedule.cron_fields(schedule_path) == "0 15 * * 0"
 
 
+def test_resolve_schedule_csv_path_uses_repo_root_for_relative_paths(tmp_path):
+    """Relative scheduler.csv paths should resolve from the repo root."""
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+
+    resolved = daily_schedule.resolve_schedule_csv_path(
+        repo_path,
+        "config/scheduler.csv",
+    )
+
+    assert resolved == (repo_path / "config/scheduler.csv").resolve()
+
+
 def test_should_run_today_uses_scheduler_csv(tmp_path):
     """Saturday should be skipped when it has no scheduler.csv row."""
     schedule_path = tmp_path / "scheduler.csv"

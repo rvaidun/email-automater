@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from datetime import datetime
-    from pathlib import Path
 
 from utils.send_window import load_schedule_windows
 
@@ -33,6 +33,22 @@ def _normalized_weekdays(weekdays: Iterable[int] | None) -> list[int]:
     """Return sorted Python weekdays with the default fallback."""
     normalized = sorted({day for day in weekdays or () if 0 <= day <= LAST_WEEKDAY})
     return normalized or sorted(DEFAULT_LAUNCH_WEEKDAYS)
+
+
+def resolve_schedule_csv_path(
+    repo_path: str | Path,
+    schedule_csv_path: str | Path | None = None,
+) -> Path:
+    """Resolve the editable scheduler CSV relative to the repo root."""
+    resolved_repo = Path(repo_path).expanduser().resolve()
+    candidate = (
+        Path(schedule_csv_path).expanduser()
+        if schedule_csv_path
+        else resolved_repo / DEFAULT_SCHEDULE_CSV_PATH
+    )
+    if candidate.is_absolute():
+        return candidate.resolve()
+    return (resolved_repo / candidate).resolve()
 
 
 def scheduled_weekdays(
