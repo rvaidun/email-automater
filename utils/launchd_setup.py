@@ -11,7 +11,12 @@ import sys
 from pathlib import Path
 from xml.sax.saxutils import escape
 
-from utils.daily_schedule import DAILY_RUN_HOUR, DAILY_RUN_MINUTE
+from utils.daily_schedule import (
+    DAILY_RUN_HOUR,
+    DAILY_RUN_MINUTE,
+    DEFAULT_SCHEDULE_CSV_PATH,
+    launchd_weekdays,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +46,7 @@ def build_daily_pipeline_launch_agent(
     *,
     python_path: str | Path | None = None,
     log_path: str | Path | None = None,
+    schedule_csv_path: str | Path | None = None,
     label: str = DEFAULT_LABEL,
 ) -> str:
     """Return a LaunchAgent plist for the daily once-only runner."""
@@ -55,7 +61,27 @@ def build_daily_pipeline_launch_agent(
         if log_path
         else resolved_repo / "daily_run.log"
     )
+    resolved_schedule = (
+        Path(schedule_csv_path).expanduser().resolve()
+        if schedule_csv_path
+        else resolved_repo / DEFAULT_SCHEDULE_CSV_PATH
+    )
     runner_path = resolved_repo / "run_daily_once.py"
+    schedule_blocks = ["  <key>StartCalendarInterval</key>", "  <array>"]
+    for weekday in launchd_weekdays(resolved_schedule):
+        schedule_blocks.extend(
+            [
+                "    <dict>",
+                "      <key>Weekday</key>",
+                f"      <integer>{weekday}</integer>",
+                "      <key>Hour</key>",
+                f"      <integer>{DAILY_RUN_HOUR}</integer>",
+                "      <key>Minute</key>",
+                f"      <integer>{DAILY_RUN_MINUTE}</integer>",
+                "    </dict>",
+            ]
+        )
+    schedule_blocks.append("  </array>")
 
     return "\n".join(
         [
@@ -73,13 +99,7 @@ def build_daily_pipeline_launch_agent(
             "  </array>",
             "  <key>WorkingDirectory</key>",
             f"  <string>{escape(str(resolved_repo))}</string>",
-            "  <key>StartCalendarInterval</key>",
-            "  <dict>",
-            "    <key>Hour</key>",
-            f"    <integer>{DAILY_RUN_HOUR}</integer>",
-            "    <key>Minute</key>",
-            f"    <integer>{DAILY_RUN_MINUTE}</integer>",
-            "  </dict>",
+            *schedule_blocks,
             "  <key>StandardOutPath</key>",
             f"  <string>{escape(str(resolved_log))}</string>",
             "  <key>StandardErrorPath</key>",
@@ -96,6 +116,7 @@ def install_launch_agent(
     *,
     python_path: str | Path | None = None,
     log_path: str | Path | None = None,
+    schedule_csv_path: str | Path | None = None,
     label: str = DEFAULT_LABEL,
     launch_agents_dir: str | Path | None = None,
 ) -> Path:
@@ -110,6 +131,7 @@ def install_launch_agent(
             repo_path,
             python_path=python_path,
             log_path=log_path,
+            schedule_csv_path=schedule_csv_path,
             label=label,
         )
     )
@@ -159,6 +181,11 @@ def parse_args() -> argparse.Namespace:
         help="Log file written by launchd",
     )
     parser.add_argument(
+        "--schedule-csv-path",
+        default=None,
+        help="Optional scheduler.csv path used to choose active weekdays",
+    )
+    parser.add_argument(
         "--print-only",
         action="store_true",
         help="Print the plist without installing it",
@@ -175,6 +202,7 @@ def main() -> int:
                 args.repo_path,
                 python_path=args.python_path,
                 log_path=args.log_path,
+                schedule_csv_path=args.schedule_csv_path,
             )
         )
         return 0
@@ -184,6 +212,7 @@ def main() -> int:
             args.repo_path,
             python_path=args.python_path,
             log_path=args.log_path,
+            schedule_csv_path=args.schedule_csv_path,
         )
     except LaunchAgentInstallError:
         logger.exception("Failed to install daily LaunchAgent")

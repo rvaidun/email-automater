@@ -84,9 +84,11 @@ def main() -> int:
             return 0
 
         now = _now()
-        schedule_csv_path = _resolve_repo_path(
-            os.getenv("SCHEDULE_CSV_PATH", DEFAULT_SCHEDULE_CSV_PATH)
+        schedule_csv_value = (
+            os.getenv("SCHEDULE_CSV_PATH", DEFAULT_SCHEDULE_CSV_PATH).strip()
+            or DEFAULT_SCHEDULE_CSV_PATH
         )
+        schedule_csv_path = _resolve_repo_path(schedule_csv_value)
         if not should_run_today(now, schedule_csv_path=schedule_csv_path):
             sys.stdout.write(
                 f"No scheduled pipeline run on {now.strftime('%A')}; skipping.\n"

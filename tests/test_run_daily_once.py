@@ -142,3 +142,29 @@ def test_main_skips_pipeline_when_today_already_completed(
     captured = capsys.readouterr().out
     assert result == 0
     assert "already completed" in captured
+
+
+def test_main_skips_unscheduled_saturday(monkeypatch, tmp_path, capsys):
+    """Saturday should be skipped before the pipeline subprocess is invoked."""
+    now = datetime(2026, 4, 11, 15, 0, tzinfo=ZoneInfo("America/New_York"))
+    state_path = tmp_path / "outreach_state.json"
+    lock_path = tmp_path / "daily_pipeline.lock"
+
+    monkeypatch.setattr(run_daily_once, "_now", lambda: now)
+    monkeypatch.setattr(run_daily_once, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(run_daily_once, "load_dotenv", lambda **_: None)
+    monkeypatch.setenv("OUTREACH_STATE_PATH", str(state_path))
+    monkeypatch.setenv("PIPELINE_LOCK_PATH", str(lock_path))
+    monkeypatch.setattr(
+        run_daily_once.subprocess,
+        "run",
+        lambda *_, **__: (_ for _ in ()).throw(
+            AssertionError("subprocess.run should not be called")
+        ),
+    )
+
+    result = run_daily_once.main()
+
+    captured = capsys.readouterr().out
+    assert result == 0
+    assert "No scheduled pipeline run on Saturday" in captured

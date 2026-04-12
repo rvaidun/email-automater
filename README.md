@@ -85,7 +85,7 @@ Most important variables:
 - `TOKEN_PATH` / `CREDS_PATH`: Gmail auth paths
 - `TIMEZONE`: primary local timezone for state + scheduling decisions
 - `SEND_WINDOW_TIMEZONE`: timezone used for new-outreach pacing
-- `SCHEDULE_CSV_PATH`: optional editable CSV for new-outreach send windows
+- `SCHEDULE_CSV_PATH`: editable CSV for scheduled run days plus new-outreach send windows
 - `OUTREACH_WEEKDAYS`: allowed weekdays for new outreach
 - `NEW_OUTREACH_DAILY_LIMIT`: max new outreach actions per run/day
 - `MAX_COMPANIES_PER_RUN`: max scraped companies considered in one run
@@ -128,16 +128,19 @@ One-off send:
 
 ## Scheduler Helpers
 
-Two schedules matter here:
+The scheduler works like this:
 
-- daily runner schedule: cron/launchd launches `run_daily_once.py` at `3:00 PM` in `America/New_York`
-- send-window schedule: an optional `scheduler.csv` can override the default business-hour send window used by new outreach
+- [`scheduler.csv`](scheduler.csv) is the easy-to-edit source of truth
+- cron/launchd launches `run_daily_once.py` at `3:00 PM` in `America/New_York` on the weekdays present in `scheduler.csv`
+- `run_daily_once.py` also checks `scheduler.csv`, so stale Saturday schedulers still skip safely
 
-Without a custom `scheduler.csv`, the default window is:
+The committed `scheduler.csv` currently means:
 
 - Monday-Friday: `09:00-16:30`
 - Sunday: `09:00-16:30`
 - Saturday: no new-outreach window
+
+So right now the scheduled runner is active on Monday-Friday plus Sunday, and it will skip Saturday.
 
 CSV day mapping uses Python weekday numbers:
 
@@ -155,10 +158,10 @@ Cron installer:
 .venv/bin/python -m utils.cron_setup --repo-path "$(pwd)"
 ```
 
-The installed cron line looks like:
+With the committed `scheduler.csv`, the installed cron line looks like:
 
 ```bash
-0 15 * * * cd /absolute/path/to/repo && .venv/bin/python run_daily_once.py >> daily_run.log 2>&1
+0 15 * * 0,1,2,3,4,5 cd /absolute/path/to/repo && .venv/bin/python run_daily_once.py >> daily_run.log 2>&1
 ```
 
 macOS LaunchAgent installer:
@@ -166,6 +169,18 @@ macOS LaunchAgent installer:
 ```bash
 .venv/bin/python -m utils.launchd_setup --repo-path "$(pwd)"
 ```
+
+If you edit `scheduler.csv` later:
+
+1. Change the day rows you want.
+2. Keep `DAY=6` if you still want Sunday runs.
+3. Re-run `utils.cron_setup` and/or `utils.launchd_setup` so the installed scheduler picks up the new weekdays.
+
+Examples:
+
+- remove Sunday runs: delete the `DAY=6` row, then re-run the installer
+- allow Saturday runs later: add a `DAY=5,...` row, then re-run the installer
+- keep Sunday only: leave only `DAY=6,...` rows, then re-run the installer
 
 ## Testing
 

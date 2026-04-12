@@ -39,3 +39,18 @@ def test_merge_crontab_text_dedupes_existing_pipeline_entry():
     )
 
     assert merged == f"{cron_line}\n"
+
+
+def test_build_daily_pipeline_cron_line_uses_custom_schedule_csv(tmp_path):
+    """A custom scheduler.csv should tighten the installed cron weekdays."""
+    repo_path = tmp_path / "repo"
+    repo_path.mkdir()
+    schedule_path = tmp_path / "scheduler.csv"
+    schedule_path.write_text("DAY,START_TIME,END_TIME\n6,09:00,16:30\n")
+
+    cron_line = build_daily_pipeline_cron_line(
+        repo_path,
+        schedule_csv_path=schedule_path,
+    )
+
+    assert cron_line.startswith("0 15 * * 0 ")

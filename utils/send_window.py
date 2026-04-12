@@ -52,7 +52,7 @@ def load_schedule_windows(path_value: str | Path | None) -> list[ScheduleWindow]
     if not path_value:
         return []
     path = Path(path_value).expanduser()
-    if not path.exists():
+    if not path.exists() or not path.is_file():
         return []
 
     windows: list[ScheduleWindow] = []
