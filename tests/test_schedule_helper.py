@@ -1,94 +1,60 @@
-import csv
 import datetime
-from io import StringIO
 from zoneinfo import ZoneInfo
 
-import pytest
-
-from utils.schedule_helper import get_scheduled_send_time, parse_time_ranges_csv
-
-
-@pytest.fixture(autouse=True)
-def csv_data():
-    """Return a CSV string with allowed time ranges."""
-    return """DAY,START_TIME,END_TIME
-0, 10:00, 11:00
-0, 14:00, 14:30
-1, 10:00, 11:00
-1, 14:00, 14:30
-2, 10:00, 11:00
-2, 14:00, 14:30
-3, 10:00, 11:00
-3, 14:00, 14:30
-4, 10:00, 11:00
-"""
-
+from utils.schedule_helper import (
+    paced_send_times,
+)
 
 LOS_ANGELES_TZ = ZoneInfo("America/Los_Angeles")
+SUNDAY_WEEKDAY = 6
+PACED_SEND_COUNT = 6
+FIRST_PACED_MINUTE = 5
 
 
-def test_parse_time_ranges_csv():
-    """Test that the function correctly parses CSV data into a list of time ranges."""
-    csv_data = """DAY,START_TIME,END_TIME
-0,09:00,12:00
-0,13:00,15:00
-1,10:00,14:00
-"""
-    csv_reader = csv.DictReader(StringIO(csv_data))
-    result = parse_time_ranges_csv(csv_reader)
+def test_paced_send_times_can_send_on_sunday_when_allowed():
+    """Sunday-enabled runs should stay on Sunday inside the current window."""
+    now = datetime.datetime(2026, 4, 12, 15, 0, tzinfo=LOS_ANGELES_TZ)
+    send_times = paced_send_times(
+        2,
+        now=now,
+        timezone="America/Los_Angeles",
+        allowed_weekdays={0, 1, 2, 3, 4, 6},
+        minimum_spacing_minutes=15,
+    )
 
-    assert len(result) == 7  # noqa: PLR2004 7 days in a week
-    assert result[0] == [
-        (datetime.time(9, 0), datetime.time(12, 0)),
-        (datetime.time(13, 0), datetime.time(15, 0)),
-    ]
-    assert result[1] == [(datetime.time(10, 0), datetime.time(14, 0))]
-    assert result[2] == []
-    assert result[6] == []
+    assert len(send_times) == 2
+    assert all(send_time.weekday() == SUNDAY_WEEKDAY for send_time in send_times)
 
 
-def test_get_scheduled_send_time_within_range(csv_data):
-    """Correctly schedules an email within an allowed time range."""
-    csv_reader = csv.DictReader(StringIO(csv_data))
-    parsed_csv = parse_time_ranges_csv(csv_reader)
-    dates = [
-        (
-            datetime.datetime(2025, 3, 18, 9, 15, tzinfo=LOS_ANGELES_TZ),
-            (
-                datetime.datetime(2025, 3, 18, 10, 00, tzinfo=LOS_ANGELES_TZ),
-                datetime.datetime(2025, 3, 18, 11, 00, tzinfo=LOS_ANGELES_TZ),
-            ),
-        ),  # Monday 9:15 AM - returns between 10:00 AM and 11:00 AM
-        (
-            datetime.datetime(2025, 3, 18, 10, 30, tzinfo=LOS_ANGELES_TZ),
-            True,
-        ),  # Monday 10:30 AM - returns True since in range
-        (
-            datetime.datetime(2025, 3, 18, 12, 15, tzinfo=LOS_ANGELES_TZ),
-            (
-                datetime.datetime(2025, 3, 18, 14, 00, tzinfo=LOS_ANGELES_TZ),
-                datetime.datetime(2025, 3, 18, 14, 30, tzinfo=LOS_ANGELES_TZ),
-            ),
-        ),  # Monday 12:15 PM - returns between 2:00 PM and 2:30
-        (
-            datetime.datetime(2025, 3, 18, 15, 00, tzinfo=LOS_ANGELES_TZ),
-            (
-                datetime.datetime(2025, 3, 19, 10, 00, tzinfo=LOS_ANGELES_TZ),
-                datetime.datetime(2025, 3, 19, 11, 00, tzinfo=LOS_ANGELES_TZ),
-            ),
-        ),  # Monday 3:00 PM - returns between 10:00 AM and 11:00 AM next day
-        (
-            datetime.datetime(2025, 3, 21, 18, 00, tzinfo=LOS_ANGELES_TZ),
-            (
-                datetime.datetime(2025, 3, 24, 10, 00, tzinfo=LOS_ANGELES_TZ),
-                datetime.datetime(2025, 3, 24, 11, 00, tzinfo=LOS_ANGELES_TZ),
-            ),
-        ),  # Friday 06:00 PM - returns between 10:00 AM and 11:00 AM next Monday
-    ]
+def test_paced_send_times_uses_fixed_gap_inside_current_window():
+    """Conservative pacing should leave a visible gap between sends."""
+    now = datetime.datetime(2026, 4, 10, 15, 0, tzinfo=LOS_ANGELES_TZ)
+    send_times = paced_send_times(
+        10,
+        now=now,
+        timezone="America/Los_Angeles",
+        minimum_spacing_minutes=15,
+    )
 
-    for now, expected in dates:
-        result = get_scheduled_send_time(parsed_csv, "America/Los_Angeles", now)
-        if isinstance(expected, bool):
-            assert result is expected
-        else:
-            assert expected[0] <= result < expected[1]
+    assert len(send_times) == PACED_SEND_COUNT
+    assert send_times[0].minute == FIRST_PACED_MINUTE
+    assert send_times[1] - send_times[0] == datetime.timedelta(minutes=15)
+
+
+def test_paced_send_times_can_use_editable_schedule_csv(tmp_path):
+    """The pacing helper should honor same-day windows from scheduler.csv."""
+    schedule_path = tmp_path / "scheduler.csv"
+    schedule_path.write_text("DAY,START_TIME,END_TIME\n6,14:30,16:30\n")
+    now = datetime.datetime(2026, 4, 12, 15, 0, tzinfo=LOS_ANGELES_TZ)
+
+    send_times = paced_send_times(
+        3,
+        now=now,
+        timezone="America/Los_Angeles",
+        allowed_weekdays={0, 1, 2, 3, 4},
+        minimum_spacing_minutes=15,
+        schedule_csv_path=str(schedule_path),
+    )
+
+    assert len(send_times) == 3
+    assert all(send_time.weekday() == SUNDAY_WEEKDAY for send_time in send_times)

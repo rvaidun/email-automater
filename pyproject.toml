@@ -6,11 +6,12 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "colorlog>=6.9.0",
-    "dotenv>=0.9.9",
-    "google-api-python-client>=2.165.0",
+    "google-api-python-client>=2.163.0",
     "google-auth-oauthlib>=1.2.1",
+    "python-dotenv>=1.0.1",
     "pytest>=8.3.5",
     "pytest-cov>=6.1.1",
+    "requests>=2.32.3",
 ]
 
 [tool.ruff]
@@ -22,8 +23,10 @@ ignore = ["D211", "D212", "D203", "COM812", "FBT001"]
 
 [tool.ruff.lint.per-file-ignores]
 # Ignore pytest rules outside tests directory
-"tests/**/*" = ["INP", "D100", "S101", "ANN", "DTZ"]
+"tests/**/*" = ["INP", "D100", "S101", "ANN", "DTZ", "PLR0913", "PLR2004", "S106", "S107", "S108", "TC003"]
 "tests/test_gmail.py" = ["E501"]
+"utils/launchd_setup.py" = ["PLR0913"]
+"utils/schedule_helper.py" = ["PLR0913"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

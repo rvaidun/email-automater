@@ -1,66 +1,97 @@
-#!/usr/bin/env python
-"""Automates sending emails to recruiters."""
+# ruff: noqa: PLR0913
+"""Automate a single recruiter outreach email."""
+
+from __future__ import annotations
 
 import argparse
-import csv
-import datetime
 import json
-import logging
 import os
 import sys
 from email.message import EmailMessage
 from pathlib import Path
 from string import Template
-from zoneinfo import ZoneInfo
+from typing import Any
 
 from dotenv import load_dotenv
 
-import utils.schedule_helper as sh
-from utils.customformatter import CustomFormatter
-from utils.email_args import (
-    EnvironmentVariables,
-    add_common_email_args,
-    add_initial_email_args,
-    get_arg_or_env,
-    get_bool_arg_or_env,
-)
+from utils.email_content import html_to_plain_text, split_inline_subject
+from utils.followup import track_email
 from utils.gmail import GmailAPI
-from utils.streak import StreakSendLaterConfig, schedule_send_later
+from utils.logging_setup import configure_logger
+from utils.recruiter_names import recruiter_template_context
 
 load_dotenv()
 
-logging.getLogger().setLevel(int(os.getenv("LOG_LEVEL", logging.INFO)))
-# set the default formatter to use CustomFormatter as the handler
-handler = logging.StreamHandler()
-handler.setFormatter(CustomFormatter())
-logging.getLogger().addHandler(handler)
+logger = configure_logger(__name__)
 
-logger = logging.getLogger(__name__)
+DEFAULT_TOKEN_PATH = Path("token.json")
+DEFAULT_CREDS_PATH = Path("credentials.json")
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Automates sending emails to recruiters"
     )
-    add_initial_email_args(parser)
-    add_common_email_args(parser)
+    parser.add_argument("recruiter_company", type=str, help="The company name")
+    parser.add_argument("recruiter_name", type=str, help="The recruiter name")
+    parser.add_argument("recruiter_email", type=str, help="The recruiter email")
+    parser.add_argument("-s", "--subject", type=str, nargs="?", help="Subject template")
+    parser.add_argument(
+        "-m",
+        "--message_body_path",
+        type=str,
+        nargs="?",
+        help="Path to the HTML template",
+    )
+    parser.add_argument(
+        "-ap",
+        "--attachment_path",
+        type=str,
+        nargs="?",
+        help="Attachment path",
+    )
+    parser.add_argument(
+        "-an",
+        "--attachment_name",
+        type=str,
+        nargs="?",
+        help="Attachment filename",
+    )
+    parser.add_argument(
+        "-tz",
+        "--timezone",
+        type=str,
+        nargs="?",
+        help="Scheduling timezone",
+    )
+    parser.add_argument(
+        "-t",
+        "--token_path",
+        type=str,
+        nargs="?",
+        default=str(DEFAULT_TOKEN_PATH),
+        help="Path to token.json",
+    )
+    parser.add_argument(
+        "-c",
+        "--creds_path",
+        type=str,
+        nargs="?",
+        default=str(DEFAULT_CREDS_PATH),
+        help="Path to credentials.json",
+    )
+    parser.add_argument(
+        "--enable_followup",
+        action="store_true",
+        help="Track the thread for automatic follow-up",
+    )
     return parser.parse_args()
 
 
-def process_string(s: str, **kwargs: dict) -> str:
-    """
-    Process a file and substitute placeholders with values.
-
-    s: The string to process.
-    **kwargs: The key-value pairs to substitute in the file.
-    For example, if the string contains the placeholder ${name},
-    you can pass name='John' to substitute it with 'John'.
-
-    Returns the processed string as a string.
-    """
-    template = Template(s)
-    return template.substitute(**kwargs)
+def process_string(s: str, **kwargs: dict[str, Any]) -> str:
+    """Substitute a Python template string."""
+    return Template(s).substitute(**kwargs)
 
 
 def create_email_message(
@@ -70,210 +101,143 @@ def create_email_message(
     attachment: bytes | None = None,
     attachment_name: str | None = None,
 ) -> EmailMessage:
-    """
-    Create an email message.
-
-    message_body: The body of the email message.
-    to_address: The email address of the recipient.
-    subject: The subject of the email message.
-    attachment: The path to the attachment file, if any.
-
-    Returns an EmailMessage object.
-    """
+    """Create a multipart email message with plain-text fallback."""
     message = EmailMessage()
-
-    message.set_content(message_body, subtype="html")
-    if attachment:
-        if attachment_name:
-            message.add_attachment(
-                attachment,
-                maintype="application",
-                subtype="octet-stream",
-                filename=attachment_name,
-            )
-        else:
-            logger.error("Attachment name not provided, skipping attachment")
-
     message["To"] = to_address
     message["Subject"] = subject
+    message.set_content(html_to_plain_text(message_body))
+    message.add_alternative(message_body, subtype="html")
 
+    if attachment and attachment_name:
+        message.add_attachment(
+            attachment,
+            maintype="application",
+            subtype="octet-stream",
+            filename=attachment_name,
+        )
     return message
 
 
-def schedule_send(
-    timezone: str,
-    csv_path: str,
-    draft: dict,
-    streak_token: str,
-    streak_email_address: str,
-) -> bool:
-    """
-    Schedule the email to be sent later using Streak.
-
-    timezone: The timezone to use for scheduling.
-    csv_path: The path to the CSV file containing the schedule.
-    draft: The draft email object.
-    streak_token: The Streak API token.
-    streak_email_address: The email address to use in Streak scheduling.
-    """
-    if not streak_token:
-        logger.error("Scheduling error: No streak token provided.")
-        return False
-    if not csv_path:
-        logger.error("Scheduling error: No schedule csv file provided.")
-        return False
-    csv_path = Path(csv_path)
-    if not csv_path.exists():
-        logger.error("Scheduling Error: No schedule csv file found.")
-        return False
-    if not streak_email_address:
-        logger.warning(
-            "Scheduling warning %s not provided. Streak scheduling may not work as \
-            expected",
-            EnvironmentVariables.STREAK_EMAIL_ADDRESS.value,
-        )
-    with csv_path.open("r") as file:
-        csv_reader = csv.DictReader(file)
-        day_ranges = sh.parse_time_ranges_csv(csv_reader)
-
-    send_time = sh.get_scheduled_send_time(day_ranges, timezone)
-    if send_time is True:
-        # current time is within allowed range
-        # send time should be 10 minutes from now to allow sufficient time for user to
-        # edit the draft in case of any errors.
-        send_time = datetime.datetime.now(tz=ZoneInfo(timezone)) + datetime.timedelta(
-            minutes=10
-        )
-    config = StreakSendLaterConfig(
-        token=streak_token,
-        to_address=args.recruiter_email,
-        subject=subject,
-        thread_id=draft["message"]["threadId"],
-        draft_id=draft["id"],
-        send_date=send_time,
-        is_tracked=True,
-        email_address=streak_email_address,
-    )
-    return schedule_send_later(config)
-
-
-if __name__ == "__main__":
-    args = parse_args()
+def load_authenticated_gmail(
+    *,
+    token_path: str | Path = DEFAULT_TOKEN_PATH,
+    creds_path: str | Path = DEFAULT_CREDS_PATH,
+) -> tuple[GmailAPI, Any]:
+    """Log into Gmail and refresh the token if needed."""
     gmail_api = GmailAPI()
-
-    # Get values from args or env vars
-    subject = get_arg_or_env(
-        args.subject,
-        EnvironmentVariables.EMAIL_SUBJECT,
-        required=True,
-    )
-    message_body_path = get_arg_or_env(
-        args.message_body_path,
-        EnvironmentVariables.MESSAGE_BODY_PATH,
-        required=True,
-    )
-    attachment_path_string = get_arg_or_env(
-        args.attachment_path,
-        EnvironmentVariables.ATTACHMENT_PATH,
-    )
-    attachment_name = get_arg_or_env(
-        args.attachment_name,
-        EnvironmentVariables.ATTACHMENT_NAME,
-    )
-
-    if bool(attachment_path_string) ^ bool(attachment_name):  # XOR
-        logger.error(
-            "attachment_path and attachment_name must both appear if either is provided"
-        )
-        sys.exit(1)
-
-    should_schedule = get_bool_arg_or_env(
-        args.schedule,
-        EnvironmentVariables.ENABLE_STREAK_SCHEDULING,
-    )
-    token_path = get_arg_or_env(
-        args.token_path,
-        EnvironmentVariables.TOKEN_PATH,
-        default="token.json",
-    )
-
     token_path = Path(token_path)
+    creds_path = Path(creds_path)
 
-    # Login with token
     if token_path.exists():
-        with token_path.open("r") as file:
-            token = file.read()
-            token_json = json.loads(token)
-            creds = gmail_api.login(token_json)
-        with token_path.open("w") as file:
-            file.write(creds.to_json())
-    else:
-        logger.info("No token JSON file found, logging in with credentials")
-        # Try logging in with credentials
-        creds_path = get_arg_or_env(
-            args.creds_path,
-            EnvironmentVariables.CREDS_PATH,
-            default="credentials.json",
-        )
-        creds_path = Path(creds_path)
-        if not creds_path.exists():
-            logger.error("No credentials JSON file found")
-            sys.exit(1)
-        creds = gmail_api.login(token=None, credentials_path=creds_path)
-        with token_path.open("w") as file:
-            file.write(creds.to_json())
-            logger.info("Token JSON file created")
+        token = json.loads(token_path.read_text())
+        creds = gmail_api.login(token)
+        token_path.write_text(creds.to_json())
+        return gmail_api, creds
 
-    # Setup email contents
-    attachment = (
-        Path(attachment_path_string).read_bytes() if attachment_path_string else None
+    if not creds_path.exists():
+        msg = f"Missing credentials file: {creds_path}"
+        raise FileNotFoundError(msg)
+
+    creds = gmail_api.login(token=None, credentials_path=str(creds_path))
+    token_path.write_text(creds.to_json())
+    return gmail_api, creds
+
+
+def send_recruiter_email(
+    *,
+    recruiter_company: str,
+    recruiter_name: str,
+    recruiter_email: str,
+    subject_template: str | None,
+    message_body_path: str | Path,
+    attachment_path: str | Path | None = None,
+    attachment_name: str | None = None,
+    token_path: str | Path = DEFAULT_TOKEN_PATH,
+    creds_path: str | Path = DEFAULT_CREDS_PATH,
+    enable_followup: bool = False,
+) -> dict[str, Any] | bool:
+    """Send a recruiter email immediately."""
+    gmail_api, _ = load_authenticated_gmail(
+        token_path=token_path,
+        creds_path=creds_path,
+    )
+    template_context = recruiter_template_context(
+        recruiter_company=recruiter_company,
+        recruiter_name=recruiter_name,
     )
     template = Path(message_body_path).read_text()
     email_contents = process_string(
         template,
-        recruiter_name=args.recruiter_name,
-        recruiter_company=args.recruiter_company,
+        **template_context,
     )
-    subject = process_string(subject, recruiter_company=args.recruiter_company)
-    email_message = create_email_message(
-        email_contents,
-        args.recruiter_email,
+    inline_subject, cleaned_email_contents = split_inline_subject(email_contents)
+    subject = inline_subject or (
+        process_string(subject_template, **template_context) if subject_template else ""
+    )
+    if not subject:
+        msg = "Email subject is required via template Subject line or EMAIL_SUBJECT"
+        raise ValueError(msg)
+    attachment = Path(attachment_path).read_bytes() if attachment_path else None
+    message = create_email_message(
+        cleaned_email_contents,
+        recruiter_email,
         subject,
         attachment=attachment,
         attachment_name=attachment_name,
     )
-    logger.info(
-        "Recruiter email: %s, Recruiter Name: %s, Recruiter Company: %s",
-        args.recruiter_email,
-        args.recruiter_name,
-        args.recruiter_company,
-    )
 
-    # Save draft
-    draft = gmail_api.save_draft(email_message)
+    sent = gmail_api.send_now(message)
+    if sent and enable_followup:
+        track_email(
+            recruiter_email,
+            recruiter_name,
+            recruiter_company,
+            sent["threadId"],
+            subject,
+        )
+    return sent
 
-    # Schedule email
-    if should_schedule:
-        timezone = get_arg_or_env(
-            args.timezone,
-            EnvironmentVariables.TIMEZONE,
-            default="UTC",
+
+def main() -> int:
+    """CLI entrypoint."""
+    args = parse_args()
+    subject = args.subject or os.getenv("EMAIL_SUBJECT")
+    message_body_path = args.message_body_path or os.getenv("MESSAGE_BODY_PATH")
+    attachment_path = args.attachment_path or os.getenv("ATTACHMENT_PATH")
+    attachment_name = args.attachment_name or os.getenv("ATTACHMENT_NAME")
+
+    if not message_body_path:
+        logger.error("MESSAGE_BODY_PATH is required")
+        return 1
+    if bool(attachment_path) ^ bool(attachment_name):
+        logger.error("attachment_path and attachment_name must both be provided")
+        return 1
+
+    try:
+        result = send_recruiter_email(
+            recruiter_company=args.recruiter_company,
+            recruiter_name=args.recruiter_name,
+            recruiter_email=args.recruiter_email,
+            subject_template=subject,
+            message_body_path=message_body_path,
+            attachment_path=attachment_path,
+            attachment_name=attachment_name,
+            token_path=args.token_path,
+            creds_path=args.creds_path,
+            enable_followup=args.enable_followup
+            or os.getenv("ENABLE_FOLLOWUP", "").lower() == "true",
         )
-        streak_token = get_arg_or_env(
-            None,
-            EnvironmentVariables.STREAK_TOKEN,
-            required=True,
-        )
-        csv_path = get_arg_or_env(
-            args.schedule_csv_path,
-            EnvironmentVariables.SCHEDULE_CSV_PATH,
-            required=True,
-        )
-        streak_email_address = (
-            get_arg_or_env(
-                args.email_address,
-                EnvironmentVariables.STREAK_EMAIL_ADDRESS,
-            )
-            or gmail_api.get_current_user()["emailAddress"]
-        )
-        schedule_send(timezone, csv_path, draft, streak_token, streak_email_address)
+    except (FileNotFoundError, ValueError):
+        logger.exception("Email preparation failed")
+        return 1
+
+    if not result:
+        logger.error("Email send failed")
+        return 1
+
+    logger.info("Email prepared successfully")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

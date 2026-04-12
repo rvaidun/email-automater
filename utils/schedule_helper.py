@@ -1,107 +1,90 @@
-"""Contains functions to help with scheduling emails."""
+"""Contains functions to help with pacing emails."""
 
-import csv
+from __future__ import annotations
+
 import datetime
-import logging
-import random
 from zoneinfo import ZoneInfo
 
-logger = logging.getLogger(__name__)
-
-LOS_ANGELES_TZ = ZoneInfo("America/Los_Angeles")
-
-
-def parse_time_ranges_csv(
-    csv_reader: csv.DictReader,
-) -> list[list[tuple[datetime.time, datetime.time]]]:
-    """
-    Parse CSV data containing allowed time ranges and organize by day of week.
-
-    Args:
-        csv_reader: csv.DictReader containing DAY, START_TIME, END_TIME
-
-    Returns:
-        List of 7 lists (one per day of week), in format (start_time, end_time)
-
-    """
-    # Initialize empty list for each day of the week (Monday-Sunday)
-    day_ranges = [[] for _ in range(7)]
-
-    for row in csv_reader:
-        day = int(row["DAY"])
-
-        # Parse start and end times
-        start_hour, start_minute = map(int, row["START_TIME"].split(":"))
-        end_hour, end_minute = map(int, row["END_TIME"].split(":"))
-
-        start_time = datetime.time(start_hour, start_minute)
-        end_time = datetime.time(end_hour, end_minute)
-
-        # Add the time range to the appropriate day
-        day_ranges[day].append((start_time, end_time))
-
-    # Sort each day's ranges by start time
-    for day in range(7):
-        day_ranges[day].sort(key=lambda x: x[0])
-
-    return day_ranges
+from utils.send_window import (
+    DEFAULT_WEEKDAYS,
+    day_window_ranges,
+    normalize_allowed_weekdays,
+)
 
 
-def get_scheduled_send_time(
-    day_ranges: list[list[tuple[datetime.time, datetime.time]]],
-    timezone: str = "UTC",
-    cur_time: datetime.datetime | None = None,
-) -> bool | datetime.datetime:
-    """
-    Schedule an email based on current time and allowed ranges.
+def _resolved_allowed_weekdays(
+    allowed_weekdays: set[int] | frozenset[int] | None,
+) -> set[int]:
+    return normalize_allowed_weekdays(allowed_weekdays, default=DEFAULT_WEEKDAYS)
 
-    Args:
-        day_ranges: Data structure containing allowed time ranges for each day of the week
-        timezone: Timezone to use for scheduling (e.g. "America/Los_Angeles")
-        cur_time: Current time to use for scheduling (datetime object)
 
-    Returns:
-        True IF current time is within an allowed range
-        OR datetime object IF for the next allowed time
-        OR False IF no allowed time ranges
+def _window_bounds(
+    now: datetime.datetime,
+    *,
+    timezone: str,
+    allowed_weekdays: set[int] | frozenset[int] | None,
+    start_hour: int,
+    start_minute: int,
+    end_hour: int,
+    end_minute: int,
+    minimum_delay_minutes: int,
+    schedule_csv_path: str | None,
+) -> tuple[datetime.datetime, list[tuple[datetime.datetime, datetime.datetime]]]:
+    localized = now.astimezone(ZoneInfo(timezone))
+    allowed_days = _resolved_allowed_weekdays(allowed_weekdays)
+    earliest = localized + datetime.timedelta(minutes=minimum_delay_minutes)
+    return earliest, day_window_ranges(
+        now,
+        timezone=timezone,
+        allowed_weekdays=allowed_days,
+        start_hour=start_hour,
+        start_minute=start_minute,
+        end_hour=end_hour,
+        end_minute=end_minute,
+        schedule_csv_path=schedule_csv_path,
+    )
 
-    """  # noqa: E501
-    now = cur_time or datetime.datetime.now(tz=ZoneInfo(timezone))
 
-    # Parse the allowed time ranges
+def paced_send_times(
+    count: int,
+    *,
+    now: datetime.datetime,
+    timezone: str,
+    allowed_weekdays: set[int] | frozenset[int] | None = None,
+    start_hour: int = 9,
+    start_minute: int = 0,
+    end_hour: int = 16,
+    end_minute: int = 30,
+    minimum_delay_minutes: int = 5,
+    minimum_spacing_minutes: int = 15,
+    schedule_csv_path: str | None = None,
+) -> list[datetime.datetime]:
+    """Return conservative same-day send slots with a fixed minimum gap."""
+    if count <= 0:
+        return []
 
-    # Get the current day and time
-    current_day = now.weekday()
-    current_time = now.time()
+    earliest, window_ranges = _window_bounds(
+        now,
+        timezone=timezone,
+        allowed_weekdays=allowed_weekdays,
+        start_hour=start_hour,
+        start_minute=start_minute,
+        end_hour=end_hour,
+        end_minute=end_minute,
+        minimum_delay_minutes=minimum_delay_minutes,
+        schedule_csv_path=schedule_csv_path,
+    )
+    if not window_ranges:
+        return []
 
-    time_range = None
-    add_day = 0
-    # Case 1: Check if current time is within an allowed range for today
-    for start_time, end_time in day_ranges[current_day]:
-        if start_time <= current_time < end_time:
-            # Current time is in an allowed range, send with a small random delay
-            return True
-        if start_time > current_time:
-            time_range = (start_time, end_time)
+    spacing = datetime.timedelta(minutes=max(minimum_spacing_minutes, 1))
+    send_times: list[datetime.datetime] = []
+    candidate = earliest
+    for window_start, window_end in window_ranges:
+        candidate = max(candidate, window_start)
+        while len(send_times) < count and candidate <= window_end:
+            send_times.append(candidate)
+            candidate += spacing
+        if len(send_times) >= count:
             break
-    else:
-        next_day = (current_day + 1) % 7
-        while next_day != current_day:
-            add_day += 1
-            if day_ranges[next_day]:
-                time_range = day_ranges[next_day][0]
-                break
-            next_day = (next_day + 1) % 7
-
-        else:
-            logger.info("No allowed time ranges found")
-            return False
-
-    # find a random time within the range
-    start_time, end_time = time_range
-    seconds_start = start_time.hour * 3600 + start_time.minute * 60
-    seconds_end = end_time.hour * 3600 + end_time.minute * 60
-    random_seconds = random.randint(seconds_start, seconds_end)  # noqa: S311 not for security
-    random_time = datetime.time(random_seconds // 3600, (random_seconds % 3600) // 60)
-    day = now.date() + datetime.timedelta(days=add_day)
-    return datetime.datetime.combine(day, random_time, tzinfo=now.tzinfo)
+    return send_times
