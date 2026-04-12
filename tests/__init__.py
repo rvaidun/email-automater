@@ -1,1 +1,1 @@
-"""Unit tests for the `tests` package."""
+"""Test support package."""

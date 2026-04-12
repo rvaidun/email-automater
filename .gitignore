@@ -1,8 +1,15 @@
 resume.pdf
 token.json
+token.json.bak*
 .env
 venv/
+.venv/
 credentials.json
+secondcredentials.json
+followup_db.json
+daily_run.log
+state/outreach_state.json
+state/daily_pipeline.lock
 *email_template.txt
 *email_template.html
 *.pyc
@@ -10,3 +17,5 @@ credentials.json
 
 __pycache__/
 .coverage
+.pytest_cache/
+.ruff_cache/

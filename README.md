@@ -1,141 +1,184 @@
-# Automate Recruiter Emails
-This is a simple python script that automates the process of sending emails to recruiters. It uses the gmail API to draft emails to recruiters. Currently I use it in conjunction with [Streak CRM](https://www.streak.com/) to manage my job search. I write the draft using this script and then later schedule the email to be sent later manually using the schedule message to send feature which streak has. Gmail also has scheduling built in but I prefer to use Streak since they also provide somewhat accurate read receipts to see when emails have been read. Unfortunately, Google Gmail API does not support schedule sending natively. Instead I reverse engineered the Streak API to schedule the draft emails to be sent later. 
-See a demo [here](https://youtu.be/Ef5i8DboJP4).
+# Email Automater
 
-# Installation
-1. Clone the repository
-2. Create a virtual environment `python3 -m venv venv`
-3. Activate the virtual environment `source venv/bin/activate`
-4. Install the requirements `pip install -r requirements.txt`
+Local Python recruiter-outreach tooling.
 
-Steps 2-4 can be skipped if using [uv](https://github.com/astral-sh/uv) package manager.
-Simply run `uv sync` and all packages will be installed in virtual environment.
+This repo currently ships:
 
+- a one-off Gmail sender for manual outreach
+- a daily pipeline that scrapes recent companies from `newgrad-jobs.com`
+- Apollo-based recruiter discovery with hard spend guards
+- conservative business-hour pacing for new outreach and follow-ups
+- Gmail thread checks for replies, bounces, opt-outs, and follow-up stops
+- local state tracking in `state/outreach_state.json`
+- helper installers for cron and macOS `launchd`
 
-5. Follow the instructions [here](https://developers.google.com/gmail/api/quickstart/python) to enable the Gmail API and download the `credentials.json` file. Save the file in the root directory of the repository.
+This repo does **not** currently ship a web UI, multi-tenant auth, or a SaaS backend. It is still a single-user local workflow.
 
-The `token.json` file will not exist yet if you haven't run the script yet. The `token.json` file stores the login credentials required to access your Google account so you don't have to relogin each time you run the script. If the file does not exist you will be prompted to login to Google using standard Oauth2 flow.
+## Current Behavior
 
-# Usage
+The default daily flow is:
 
-```
-usage: automate_emails.py [-h] [-ap [ATTACHMENT_PATH]] [-an [ATTACHMENT_NAME]]
-                          [-s [SUBJECT]] [-m [MESSAGE_BODY_PATH]]
-                          [-tz [TIMEZONE]] [-sch] [-scsv [SCHEDULE_CSV_PATH]]
-                          [-e [EMAIL_ADDRESS]] [-t [TOKEN_PATH]]
-                          [-c [CREDS_PATH]]
-                          recruiter_company recruiter_name recruiter_email
+1. scrape recent software-ish jobs from `newgrad-jobs.com`
+2. normalize and dedupe company names
+3. skip companies already contacted today, on cooldown, or over the 60-day cap
+4. discover recruiter-like contacts in Apollo
+5. render sample outreach using the committed email templates
+6. send new outreach only inside the configured business window
+7. check existing Gmail threads for replies, bounces, auto-replies, and opt-outs
+8. send follow-ups as real thread replies when due
 
-Automates sending emails to recruiters
+Key safety rules already enforced in code:
 
-positional arguments:
-  recruiter_company     The company name of the recruiter
-  recruiter_name        The full name of the recruiter
-  recruiter_email       The email address of the recruiter
+- dry runs skip paid Apollo discovery unless `--allow-paid-apollo-in-dry-run` is set
+- outside the active send window, the pipeline does not spend Apollo credits on new outreach
+- sends are paced locally instead of blasting all contacts at once
+- one new recruiter contact per company per day
+- two recruiter contacts max per company inside a rolling 60-day window
+- follow-ups stop when the thread shows a reply, bounce, auto-reply, or opt-out
 
-options:
-  -h, --help            show this help message and exit
-  -ap, --attachment_path [ATTACHMENT_PATH]
-                        The path to the attachment file, if this is provided,
-                        attachment_name must also be provided. Overrides the
-                        ATTACHMENT_PATH environment variable
-  -an, --attachment_name [ATTACHMENT_NAME]
-                        The name of the attachment file. Overrides the
-                        ATTACHMENT_NAME environment variable
-  -s, --subject [SUBJECT]
-                        The subject of the email message as a string template.
-                        Overrides the EMAIL_SUBJECT environment variable.
-  -m, --message_body_path [MESSAGE_BODY_PATH]
-                        The path to the message body template. Overrides the
-                        MESSAGE_BODY_PATH environment variable.
-  -tz, --timezone [TIMEZONE]
-                        The timezone to use for scheduling emails
-                        (America/New_York). Overrides the TIMEZONE environment
-                        variable. This is used to determine the time range so
-                        it should be the recipient's timezone.
-  -sch, --schedule      Whether the email should be tracked or not. Overrides
-                        the ENABLE_STREAK_SCHEDULING. If set, the streak token
-                        must be provided via env variable STREAK_TOKEN
-  -scsv, --schedule_csv_path [SCHEDULE_CSV_PATH]
-                        CSV to use for scheduling the emails. Overrides the
-                        SCHEDULE_CSV_PATH environment variable. Note:
-                        --schedule needs to be enabled for this to be used
-  -e, --email_address [EMAIL_ADDRESS]
-                        The email address to send to the Streak API. Overrides
-                        the STREAK_EMAIL_ADDRESS. If not provided, the email
-                        address of the authenticated user will be used. Note:
-                        --schedule needs to be enabled for this to be used
-  -t, --token_path [TOKEN_PATH]
-                        The path to the token.json file. The default value is
-                        token.json. Overrides the TOKEN_PATH environment
-                        variable
-  -c, --creds_path [CREDS_PATH]
-                        The path to the credentials.json file. The default
-                        value is credentials.json. Overrides the CREDS_PATH
-                        environment variable
+## Repository Layout
 
-```
-## Templating
-Both `EMAIL_SUBJECT` and `MESSAGE_BODY_PATH` support templating. The `automate-emails.py` script uses [Python's templating syntax](https://docs.python.org/3.3/tutorial/stdlib2.html#templating) to replace the values represented by these environment variables. The rules of templating are as follows:
-- `EMAIL_SUBJECT`: The script will replace the `$recruiter_company` templating variable with the value provided in the command line arguments.
-The subject could look like `Interested in $recruiter_company`
+- `pipeline.py`: daily orchestration entrypoint
+- `automate_emails.py`: one-off recruiter email sender
+- `send_followups.py`: due follow-up runner
+- `run_daily_once.py`: once-per-day wrapper for cron/launchd
+- `scrape_jobs.py`: job scraping + screenshot OCR fallback
+- `find_contacts.py`: Apollo recruiter lookup helper
+- `utils/outreach_state.py`: JSON state model
+- `email1.md`, `email2.md`, `email3.md`: sample email templates
 
-- `MESSAGE_BODY_PATH`: The name of the file to process. The file should use Python's templating syntax to have the following variables: `recruiter_name`, `recruiter_company`. The script will replace these variables with the values provided in the command line arguments. For example, the `email_template.txt` file could look like this:
-```
-Dear $recruiter_name,
+## Setup
 
-I am interested in the position at $recruiter_company.
+1. Clone the repo.
+2. Install dependencies.
+
+Using `uv`:
+
+```bash
+uv sync
 ```
 
-## Sample Environment Variables
-The following environment variables are set in my personal environment
-```
-# Email stuff
-EMAIL_SUBJECT=I would like to work at $recruiter_company
-MESSAGE_BODY_PATH=email_template.html
-ATTACHMENT_PATH=resume.pdf
-ATTACHMENT_NAME=FirstName_LastName_Resume.pdf
+Using `venv` + `pip`:
 
-# Streak stuff
-TIMEZONE=America/Los_Angeles
-STREAK_TOKEN=classic:C/THIS+IS+/NOT/A/REAL TOKEN
-ENABLE_STREAK_SCHEDULING=True
-SCHEDULE_CSV_PATH=scheduler.csv
-STREAK_EMAIL_ADDRESS=first.last@gmail.com
-
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## Schedule Emails
-To enable scheduling emails you need to set `ENABLE_STREAK_SCHEDULING`. You also need to provide the `SCHEDULE_CSV_PATH` which is the path to the CSV file which contains the schedule information. The CSV file should have the following columns:
-- `DAY`: An integer from 0 to 6 representing the day of the week where 0 is Monday and 6 is Sunday.
-- `START_TIME`: The start time of the time range emails should be sent in the format `HH:MM`. 24-hour format.
-- `END_TIME`: The end time of the time range emails should be sent in the format `HH:MM`. 24-hour format.
+3. Create a `.env` from `env.example`.
+4. Follow the Gmail quickstart to create `credentials.json`:
+   [Google Gmail API Python quickstart](https://developers.google.com/gmail/api/quickstart/python)
+5. Run any Gmail command once to generate `token.json`.
 
-For example:
-```csv
-DAY,START_TIME,END_TIME
-0, 10:00, 11:00
-0, 14:00, 14:30
-1, 10:00, 11:00
-1, 14:00, 14:30
-2, 10:00, 11:00
-2, 14:00, 14:30
-3, 10:00, 11:00
-3, 14:00, 14:30
-4, 10:00, 11:00
+`token.json`, `credentials.json`, local state, and logs are ignored by Git.
+
+## Configuration
+
+See `env.example` for the current supported settings.
+
+Most important variables:
+
+- `APOLLO_API_KEY`: required for recruiter discovery
+- `MESSAGE_BODY_PATH`: template used for initial outreach
+- `EMAIL_SUBJECT`: optional fallback subject when the template does not provide an inline `Subject:`
+- `TOKEN_PATH` / `CREDS_PATH`: Gmail auth paths
+- `TIMEZONE`: primary local timezone for state + scheduling decisions
+- `SEND_WINDOW_TIMEZONE`: timezone used for new-outreach pacing
+- `SCHEDULE_CSV_PATH`: optional editable CSV for new-outreach send windows
+- `OUTREACH_WEEKDAYS`: allowed weekdays for new outreach
+- `NEW_OUTREACH_DAILY_LIMIT`: max new outreach actions per run/day
+- `MAX_COMPANIES_PER_RUN`: max scraped companies considered in one run
+- `PIPELINE_CONTACT_DISCOVERY_LIMIT_PER_COMPANY`: recruiter candidates explored per company
+- `APOLLO_REQUEST_BUDGET_PER_RUN`: hard per-run Apollo request budget
+- `FOLLOWUP_DAILY_LIMIT`: optional follow-up cap; unset or `0` means no extra cap
+
+The committed templates are safe sample defaults. Customize them before using this for real outreach.
+
+## Commands
+
+Daily pipeline:
+
+```bash
+.venv/bin/python pipeline.py --mode daily --dry-run
+.venv/bin/python pipeline.py --mode daily --dry-run --allow-paid-apollo-in-dry-run
+.venv/bin/python pipeline.py --mode daily
 ```
-The script will send the email to the recruiter at a random time in the earliest possible range. See the following cases which show how the emails will get scheduled if you use the above CSV:
-1. If it is Monday 9:15 AM the email will be scheduled for a random time between 10:00 AM and 11:00 AM
-2. If it is Monday 10:30 AM the email will be sent now since the time is between 10:00 AM and 11:00 AM
-3. If it is Monday 13:00 PM the email will be scheduled for a random time between 14:00 PM and 14:30 PM
-4. If it is Monday 15:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Tuesday
-5. If it is Friday 13:00 PM the email will be scheduled for a random time between 10:00 AM and 11:00 AM on Monday
 
-I like to do this because I can send emails at the optimal time when recruiters are most likely to read them. Sending emails at 10-11 and 2-3 is generally the most optimal based on my research. I also like to send emails at the beginning of the day so that they are at the top of the recruiter's inbox.
+Once-per-day wrapper for schedulers:
 
-You also need to provide `STREAK_TOKEN` via environment variable, you can get this by inspecting the network requests when you schedule an email in Streak. Look for the network request to `https://api.streak.com/api/v2/sendlaters` and copy the `Authorization` header value without the `Bearer` prefix.
+```bash
+.venv/bin/python run_daily_once.py
+```
 
-You can also set `TIMEZONE` to specify the timezone to use for scheduling emails. The default is `UTC`. This should be the receipients timezone
-# Future
+Direct helpers:
 
-I created this just to help me with my job search. I'm not really planning on adding any new features. However, if you have any suggestions or find any bugs feel free to open an issue or a pull request. The only improvement I can think of is to add a feature to schedule the emails to be sent later natively without stripe. This would require significant engineering effort since the project would have to maintain a DB of scheduled emails and send the emails on time. Adding additional template variables would also be a nice feature to have.
+```bash
+.venv/bin/python scrape_jobs.py
+.venv/bin/python scrape_jobs.py --screenshot /absolute/path/to/screenshot.png
+.venv/bin/python find_contacts.py Stripe --allow-paid-apollo
+.venv/bin/python send_followups.py
+```
+
+One-off send:
+
+```bash
+.venv/bin/python automate_emails.py "ExampleCo" "Taylor Recruiter" "taylor@example.com"
+```
+
+## Scheduler Helpers
+
+Two schedules matter here:
+
+- daily runner schedule: cron/launchd launches `run_daily_once.py` at `3:00 PM` in `America/New_York`
+- send-window schedule: an optional `scheduler.csv` can override the default business-hour send window used by new outreach
+
+Without a custom `scheduler.csv`, the default window is:
+
+- Monday-Friday: `09:00-16:30`
+- Sunday: `09:00-16:30`
+- Saturday: no new-outreach window
+
+CSV day mapping uses Python weekday numbers:
+
+- `0=Monday`
+- `1=Tuesday`
+- `2=Wednesday`
+- `3=Thursday`
+- `4=Friday`
+- `5=Saturday`
+- `6=Sunday`
+
+Cron installer:
+
+```bash
+.venv/bin/python -m utils.cron_setup --repo-path "$(pwd)"
+```
+
+The installed cron line looks like:
+
+```bash
+0 15 * * * cd /absolute/path/to/repo && .venv/bin/python run_daily_once.py >> daily_run.log 2>&1
+```
+
+macOS LaunchAgent installer:
+
+```bash
+.venv/bin/python -m utils.launchd_setup --repo-path "$(pwd)"
+```
+
+## Testing
+
+Run the current gate locally:
+
+```bash
+pytest tests/ -q
+uvx ruff check .
+uvx ruff format --check .
+```
+
+## Notes
+
+- The old Streak-based scheduling path has been removed from the active workflow.
+- State lives in `state/outreach_state.json`; deleting it resets local history.
+- This repo is intentionally conservative about spend and deliverability. If a run cannot send safely, it should send less rather than more.
