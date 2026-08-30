@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"emailer/internal/argparse"
 	"emailer/internal/config"
 	"emailer/internal/gmail"
+	"emailer/internal/logger"
 	"emailer/internal/scheduler"
 	"emailer/internal/streak"
 
@@ -39,7 +39,7 @@ func authenticateGmail(client *gmail.Client, tokenPath, credsPath string) (*gmai
 		return nil, fmt.Errorf("no credentials JSON file found")
 	}
 
-	log.Println("No token JSON file found, logging in with credentials")
+	logger.Info("No token JSON file found, logging in with credentials")
 	return client.LoginWithCredentials(credsPath)
 }
 
@@ -53,7 +53,7 @@ func saveCredentials(creds *gmail.Credentials, tokenPath string) error {
 		return fmt.Errorf("failed to write token file: %v", err)
 	}
 
-	log.Println("Token JSON file created")
+	logger.Info("Token JSON file created")
 	return nil
 }
 
@@ -88,7 +88,7 @@ func scheduleSend(timezone, csvPath string, draft *gmail.Draft, streakToken, str
 	}
 
 	if streakEmailAddress == "" {
-		log.Printf("Scheduling warning: %s not provided. Streak scheduling may not work as expected", config.EnvStreakEmailAddress)
+		logger.Warn("Scheduling: %s not provided; Streak scheduling may not work as expected", config.EnvStreakEmailAddress)
 	}
 
 	// Parse CSV and get scheduled time
@@ -130,7 +130,7 @@ func scheduleSend(timezone, csvPath string, draft *gmail.Draft, streakToken, str
 func main() {
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found: %v", err)
+		logger.Warn(".env file not found: %v", err)
 	}
 
 	// Parse command line arguments
@@ -141,7 +141,7 @@ func main() {
 
 	// Validate required arguments
 	if err := argparse.ValidateArgs(args); err != nil {
-		log.Fatalf("Validation error: %v", err)
+		logger.Fatal("Validation error: %v", err)
 	}
 
 	// Create Gmail client
@@ -152,11 +152,11 @@ func main() {
 
 	creds, err := authenticateGmail(gmailClient, tokenPath, args.CredsPath)
 	if err != nil {
-		log.Fatalf("Authentication failed: %v", err)
+		logger.Fatal("Authentication failed: %v", err)
 	}
 	// Save updated credentials
 	if err := saveCredentials(creds, tokenPath); err != nil {
-		log.Printf("Warning: Failed to save credentials: %v", err)
+		logger.Warn("Failed to save credentials: %v", err)
 	}
 
 	// Get values from args or env vars
@@ -167,13 +167,13 @@ func main() {
 
 	// Validate attachment parameters
 	if (attachmentPathString != "") != (attachmentName != "") {
-		log.Fatal("attachment_path and attachment_name must both appear if either is provided")
+		logger.Fatal("attachment_path and attachment_name must both appear if either is provided")
 	}
 
 	// Validate attachment file exists if path is provided
 	if attachmentPathString != "" {
 		if _, err := os.Stat(attachmentPathString); err != nil {
-			log.Fatalf("Attachment file not found: %v", err)
+			logger.Fatal("Attachment file not found: %v", err)
 		}
 	}
 
@@ -184,18 +184,18 @@ func main() {
 	if attachmentPathString != "" {
 		attachment, err = os.ReadFile(attachmentPathString)
 		if err != nil {
-			log.Fatalf("Failed to read attachment file: %v", err)
+			logger.Fatal("Failed to read attachment file: %v", err)
 		}
 	}
 
 	// Validate message template file exists
 	if _, err := os.Stat(messageBodyPath); err != nil {
-		log.Fatalf("Message template file not found: %v", err)
+		logger.Fatal("Message template file not found: %v", err)
 	}
 
 	templateContent, err := os.ReadFile(messageBodyPath)
 	if err != nil {
-		log.Fatalf("Failed to read message template: %v", err)
+		logger.Fatal("Failed to read message template: %v", err)
 	}
 
 	emailContents, err := processTemplate(string(templateContent), map[string]string{
@@ -203,14 +203,14 @@ func main() {
 		"recruiter_company": args.RecruiterCompany,
 	})
 	if err != nil {
-		log.Fatalf("Failed to process template: %v", err)
+		logger.Fatal("Failed to process template: %v", err)
 	}
 
 	subject, err = processTemplate(subject, map[string]string{
 		"recruiter_company": args.RecruiterCompany,
 	})
 	if err != nil {
-		log.Fatalf("Failed to process subject template: %v", err)
+		logger.Fatal("Failed to process subject template: %v", err)
 	}
 
 	emailMessage := gmail.CreateEmailMessage(
@@ -221,13 +221,13 @@ func main() {
 		attachmentName,
 	)
 
-	log.Printf("Recruiter email: %s, Recruiter Name: %s, Recruiter Company: %s",
+	logger.Info("Recruiter email: %s, Recruiter Name: %s, Recruiter Company: %s",
 		args.RecruiterEmail, args.RecruiterName, args.RecruiterCompany)
 
 	// Save draft
 	draft, err := gmailClient.SaveDraft(emailMessage)
 	if err != nil {
-		log.Fatalf("Failed to save draft: %v", err)
+		logger.Fatal("Failed to save draft: %v", err)
 	}
 
 	// Schedule email if requested
@@ -240,14 +240,14 @@ func main() {
 		if streakEmailAddress == "" {
 			user, err := gmailClient.GetCurrentUser()
 			if err != nil {
-				log.Printf("Warning: Failed to get current user: %v", err)
+				logger.Warn("Failed to get current user: %v", err)
 			} else {
 				streakEmailAddress = user.EmailAddress
 			}
 		}
 
 		if err := scheduleSend(timezone, csvPath, draft, streakToken, streakEmailAddress, args.RecruiterEmail, subject); err != nil {
-			log.Printf("Warning: Failed to schedule email: %v", err)
+			logger.Warn("Failed to schedule email: %v", err)
 		}
 	}
 }

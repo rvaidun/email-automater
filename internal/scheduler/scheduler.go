@@ -3,12 +3,13 @@ package scheduler
 import (
 	"encoding/csv"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"emailer/internal/logger"
 )
 
 // TimeRange represents a time range for scheduling
@@ -50,24 +51,24 @@ func ParseTimeRangesCSV(csvPath string) (*DayRanges, error) {
 
 		day, err := strconv.Atoi(strings.TrimSpace(record[0]))
 		if err != nil {
-			log.Printf("Warning: invalid day value: %s", record[0])
+			logger.Warn("invalid day value: %s", record[0])
 			continue
 		}
 
 		if day < 0 || day > 6 {
-			log.Printf("Warning: day value out of range (0-6): %d", day)
+			logger.Warn("day value out of range (0-6): %d", day)
 			continue
 		}
 
 		startTime, err := parseTime(record[1])
 		if err != nil {
-			log.Printf("Warning: invalid start time: %s", record[1])
+			logger.Warn("invalid start time: %s", record[1])
 			continue
 		}
 
 		endTime, err := parseTime(record[2])
 		if err != nil {
-			log.Printf("Warning: invalid end time: %s", record[2])
+			logger.Warn("invalid end time: %s", record[2])
 			continue
 		}
 
@@ -92,7 +93,7 @@ func ParseTimeRangesCSV(csvPath string) (*DayRanges, error) {
 func GetScheduledSendTime(dayRanges *DayRanges, timezone string, curTime *time.Time) (*time.Time, error) {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
-		log.Printf("Warning: invalid timezone %s, using UTC", timezone)
+		logger.Warn("invalid timezone %s, using UTC", timezone)
 		loc = time.UTC
 	}
 

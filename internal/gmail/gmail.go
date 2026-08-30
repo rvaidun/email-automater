@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"os"
 	"time"
+
+	"emailer/internal/logger"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -167,7 +168,7 @@ func (c *Client) SaveDraft(message *gmail.Message) (*Draft, error) {
 		return nil, fmt.Errorf("failed to create draft: %v", err)
 	}
 	
-	log.Printf("Draft saved with ID: %s", result.Id)
+	logger.Info("Draft saved with ID: %s", result.Id)
 	
 	return &Draft{
 		Id:      result.Id,
@@ -182,7 +183,7 @@ func (c *Client) SendNow(message *gmail.Message) (*gmail.Message, error) {
 		return nil, fmt.Errorf("failed to send message: %v", err)
 	}
 	
-	log.Printf("Message sent with ID: %s", result.Id)
+	logger.Info("Message sent with ID: %s", result.Id)
 	return result, nil
 }
 

@@ -2,8 +2,8 @@ package argparse
 
 import (
 	"emailer/internal/config"
+	"emailer/internal/logger"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -168,7 +168,7 @@ func GetArgOrEnv(argValue, envVar string, required bool, defaultValue string) st
 		return defaultValue
 	}
 	if required {
-		log.Fatalf("Missing required argument or environment variable: %s", envVar)
+		logger.Fatal("Missing required argument or environment variable: %s", envVar)
 	}
 	return ""
 }

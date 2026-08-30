@@ -3,12 +3,13 @@ package streak
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"emailer/internal/logger"
 )
 
 // SendLaterConfig contains the configuration for scheduling emails
@@ -105,6 +106,6 @@ func ScheduleSendLater(config *SendLaterConfig) error {
 		return fmt.Errorf("failed to schedule email to be sent later, status: %d", resp.StatusCode)
 	}
 
-	log.Printf("Email scheduled to be sent at %s", config.SendDate.Format(time.RFC3339))
+	logger.Info("Email scheduled to be sent at %s", config.SendDate.Format(time.RFC3339))
 	return nil
 }
